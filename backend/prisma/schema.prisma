@@ -1,0 +1,207 @@
+// ViajaIA — schema.prisma
+// Modelo lógico completo: 11 entidades (RF01–RF18)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Enums ----------
+
+enum Papel {
+  ADMIN
+  MEMBRO
+}
+
+enum StatusConvite {
+  PENDENTE
+  ACEITO
+  RECUSADO
+}
+
+enum StatusViagem {
+  PLANEJAMENTO
+  DESTINO_DEFINIDO
+  ROTEIRO_PRONTO
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+enum RemetenteMensagem {
+  USUARIO
+  AGENTE
+}
+
+enum TipoItemRoteiro {
+  HOSPEDAGEM
+  PONTO_TURISTICO
+  ATIVIDADE
+}
+
+// ---------- Entidades ----------
+
+model Usuario {
+  id         String   @id @default(uuid())
+  nome       String
+  email      String   @unique
+  senhaHash  String   @map("senha_hash")
+  telefone   String?
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  viagensCriadas       Viagem[]              @relation("ViagemCriadaPor")
+  participacoes        ParticipanteViagem[]
+  votos                VotoDestino[]
+  despesasPagas        Despesa[]             @relation("DespesaPagaPor")
+  participacoesDespesa ParticipacaoDespesa[]
+
+  @@map("usuario")
+}
+
+model Viagem {
+  id             String       @id @default(uuid())
+  nome           String
+  status         StatusViagem @default(PLANEJAMENTO)
+  dataInicio     DateTime?    @map("data_inicio")
+  dataFim        DateTime?    @map("data_fim")
+  criadoPorId    String       @map("criado_por")
+  destinoFinalId String?      @unique @map("destino_final")
+  criadoEm       DateTime     @default(now()) @map("criado_em")
+
+  criadoPor    Usuario          @relation("ViagemCriadaPor", fields: [criadoPorId], references: [id])
+  destinoFinal DestinoSugerido? @relation("DestinoFinalDaViagem", fields: [destinoFinalId], references: [id])
+
+  participantes     ParticipanteViagem[]
+  destinosSugeridos DestinoSugerido[]    @relation("DestinosDaViagem")
+  despesas          Despesa[]
+  roteiro           Roteiro?
+
+  @@map("viagem")
+}
+
+model ParticipanteViagem {
+  id            String        @id @default(uuid())
+  usuarioId     String        @map("usuario_id")
+  viagemId      String        @map("viagem_id")
+  papel         Papel         @default(MEMBRO)
+  statusConvite StatusConvite @default(PENDENTE) @map("status_convite")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  viagem  Viagem  @relation(fields: [viagemId], references: [id])
+
+  preferencia PreferenciaViagem?
+  mensagens   MensagemAgente[]
+
+  @@unique([usuarioId, viagemId])
+  @@map("participante_viagem")
+}
+
+model PreferenciaViagem {
+  id                String  @id @default(uuid())
+  participanteId    String  @unique @map("participante_id")
+  orcamento         Float?
+  interesses        String?
+  restricoes        String?
+  resumoEstruturado Json?   @map("resumo_estruturado")
+
+  participante ParticipanteViagem @relation(fields: [participanteId], references: [id])
+
+  @@map("preferencia_viagem")
+}
+
+model MensagemAgente {
+  id             String            @id @default(uuid())
+  participanteId String            @map("participante_id")
+  remetente      RemetenteMensagem
+  conteudo       String
+  criadoEm       DateTime          @default(now()) @map("criado_em")
+
+  participante ParticipanteViagem @relation(fields: [participanteId], references: [id])
+
+  @@map("mensagem_agente")
+}
+
+model DestinoSugerido {
+  id          String  @id @default(uuid())
+  viagemId    String  @map("viagem_id")
+  nomeDestino String  @map("nome_destino")
+  descricao   String?
+  geradoPorIa Boolean @default(true) @map("gerado_por_ia")
+
+  viagem Viagem @relation("DestinosDaViagem", fields: [viagemId], references: [id])
+
+  votos           VotoDestino[]
+  viagemEscolhida Viagem?       @relation("DestinoFinalDaViagem")
+
+  @@map("destino_sugerido")
+}
+
+model VotoDestino {
+  id        String   @id @default(uuid())
+  destinoId String   @map("destino_id")
+  usuarioId String   @map("usuario_id")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  destino DestinoSugerido @relation(fields: [destinoId], references: [id])
+  usuario Usuario         @relation(fields: [usuarioId], references: [id])
+
+  @@unique([destinoId, usuarioId])
+  @@map("voto_destino")
+}
+
+model Roteiro {
+  id       String   @id @default(uuid())
+  viagemId String   @unique @map("viagem_id")
+  geradoEm DateTime @default(now()) @map("gerado_em")
+
+  viagem Viagem        @relation(fields: [viagemId], references: [id])
+  itens  ItemRoteiro[]
+
+  @@map("roteiro")
+}
+
+model ItemRoteiro {
+  id        String          @id @default(uuid())
+  roteiroId String          @map("roteiro_id")
+  dia       Int
+  tipo      TipoItemRoteiro
+  titulo    String
+  descricao String?
+  ordem     Int
+
+  roteiro Roteiro @relation(fields: [roteiroId], references: [id])
+
+  @@map("item_roteiro")
+}
+
+model Despesa {
+  id        String   @id @default(uuid())
+  viagemId  String   @map("viagem_id")
+  descricao String
+  valor     Float
+  pagoPorId String   @map("pago_por")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  viagem  Viagem  @relation(fields: [viagemId], references: [id])
+  pagoPor Usuario @relation("DespesaPagaPor", fields: [pagoPorId], references: [id])
+
+  participacoes ParticipacaoDespesa[]
+
+  @@map("despesa")
+}
+
+model ParticipacaoDespesa {
+  id          String @id @default(uuid())
+  despesaId   String @map("despesa_id")
+  usuarioId   String @map("usuario_id")
+  valorDevido Float  @map("valor_devido")
+
+  despesa Despesa @relation(fields: [despesaId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@unique([despesaId, usuarioId])
+  @@map("participacao_despesa")
+}
