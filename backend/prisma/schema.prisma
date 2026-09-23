@@ -2,7 +2,7 @@
 // Modelo lógico completo: 11 entidades (RF01–RF18)
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
