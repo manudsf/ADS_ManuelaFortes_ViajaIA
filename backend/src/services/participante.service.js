@@ -49,6 +49,25 @@ export async function confirmarParticipacao({ viagemId, usuarioId }) {
   });
 }
 
+export async function recusarConvite({ viagemId, usuarioId }) {
+  const participante = await prisma.participanteViagem.findUnique({
+    where: { usuarioId_viagemId: { usuarioId, viagemId } },
+  });
+
+  if (!participante) {
+    throw new Error("CONVITE_NAO_ENCONTRADO");
+  }
+
+  if (participante.papel === "ADMIN") {
+    throw new Error("ADMIN_NAO_PODE_RECUSAR");
+  }
+
+  return prisma.participanteViagem.update({
+    where: { id: participante.id },
+    data: { statusConvite: "RECUSADO" },
+  });
+}
+
 export async function removerParticipante({ viagemId, participanteId, solicitanteId }) {
   const admin = await buscarParticipanteAdmin(viagemId, solicitanteId);
   if (!admin) {

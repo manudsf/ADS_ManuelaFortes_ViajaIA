@@ -50,6 +50,28 @@ export async function confirmar(req, res) {
   }
 }
 
+export async function recusar(req, res) {
+  try {
+    const { viagemId } = req.params;
+
+    const participante = await participanteService.recusarConvite({
+      viagemId,
+      usuarioId: req.usuarioId,
+    });
+
+    return res.status(200).json(participante);
+  } catch (error) {
+    if (error.message === "CONVITE_NAO_ENCONTRADO") {
+      return res.status(404).json({ erro: "Você não tem um convite pendente para esta viagem." });
+    }
+    if (error.message === "ADMIN_NAO_PODE_RECUSAR") {
+      return res.status(400).json({ erro: "O administrador não pode recusar a própria viagem." });
+    }
+    console.error(error);
+    return res.status(500).json({ erro: "Erro interno ao recusar convite." });
+  }
+}
+
 export async function remover(req, res) {
   try {
     const { viagemId, participanteId } = req.params;
