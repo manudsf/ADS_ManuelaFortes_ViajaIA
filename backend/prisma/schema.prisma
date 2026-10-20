@@ -83,11 +83,12 @@ model Viagem {
 }
 
 model ParticipanteViagem {
-  id            String        @id @default(uuid())
-  usuarioId     String        @map("usuario_id")
-  viagemId      String        @map("viagem_id")
-  papel         Papel         @default(MEMBRO)
-  statusConvite StatusConvite @default(PENDENTE) @map("status_convite")
+  id                  String        @id @default(uuid())
+  usuarioId           String        @map("usuario_id")
+  viagemId            String        @map("viagem_id")
+  papel               Papel         @default(MEMBRO)
+  statusConvite       StatusConvite @default(PENDENTE) @map("status_convite")
+  conversaConcluidaEm DateTime?     @map("conversa_concluida_em")
 
   usuario Usuario @relation(fields: [usuarioId], references: [id])
   viagem  Viagem  @relation(fields: [viagemId], references: [id])

@@ -1,8 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
 import { prisma } from "../db.js";
-
-const ai = new GoogleGenAI({});
-const MODELO = "gemini-3-flash-preview";
+import { gerarTexto } from "./gemini.service.js";
 
 async function buscarParticipanteConfirmado(viagemId, usuarioId) {
   const participante = await prisma.participanteViagem.findUnique({
@@ -16,19 +13,9 @@ async function buscarParticipanteConfirmado(viagemId, usuarioId) {
   return participante;
 }
 
-export async function buscarPreferencia({ viagemId, usuarioId }) {
-  const participante = await buscarParticipanteConfirmado(viagemId, usuarioId);
-
-  return prisma.preferenciaViagem.findUnique({
-    where: { participanteId: participante.id },
-  });
-}
-
-export async function gerarPreferenciaDaConversa({ viagemId, usuarioId }) {
-  const participante = await buscarParticipanteConfirmado(viagemId, usuarioId);
-
+export async function extrairPreferencias(participanteId) {
   const mensagens = await prisma.mensagemAgente.findMany({
-    where: { participanteId: participante.id },
+    where: { participanteId },
     orderBy: { criadoEm: "asc" },
   });
 
@@ -56,36 +43,42 @@ Conversa:
 ${conversaTexto}
 `;
 
-  const resposta = await ai.models.generateContent({
-    model: MODELO,
+  const texto = await gerarTexto({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
   });
 
   let dados;
   try {
-    const textoLimpo = resposta.text.replace(/```json|```/g, "").trim();
+    const textoLimpo = texto.replace(/```json|```/g, "").trim();
     dados = JSON.parse(textoLimpo);
   } catch (error) {
     throw new Error("FALHA_AO_INTERPRETAR_RESPOSTA");
   }
 
-  const interessesTexto = Array.isArray(dados.interesses) ? dados.interesses.join(", ") : null;
+  return {
+    orcamento: dados.orcamento ?? null,
+    interesses: Array.isArray(dados.interesses) ? dados.interesses.join(", ") : null,
+    restricoes: dados.restricoes ?? null,
+    resumoEstruturado: dados,
+  };
+}
+
+export async function buscarPreferencia({ viagemId, usuarioId }) {
+  const participante = await buscarParticipanteConfirmado(viagemId, usuarioId);
+
+  return prisma.preferenciaViagem.findUnique({
+    where: { participanteId: participante.id },
+  });
+}
+
+export async function gerarPreferenciaDaConversa({ viagemId, usuarioId }) {
+  const participante = await buscarParticipanteConfirmado(viagemId, usuarioId);
+  const campos = await extrairPreferencias(participante.id);
 
   return prisma.preferenciaViagem.upsert({
     where: { participanteId: participante.id },
-    create: {
-      participanteId: participante.id,
-      orcamento: dados.orcamento ?? null,
-      interesses: interessesTexto,
-      restricoes: dados.restricoes ?? null,
-      resumoEstruturado: dados,
-    },
-    update: {
-      orcamento: dados.orcamento ?? null,
-      interesses: interessesTexto,
-      restricoes: dados.restricoes ?? null,
-      resumoEstruturado: dados,
-    },
+    create: { participanteId: participante.id, ...campos },
+    update: campos,
   });
 }
 
@@ -106,4 +99,36 @@ export async function editarPreferencia({ viagemId, usuarioId, orcamento, intere
       ...(restricoes !== undefined && { restricoes }),
     },
   });
+}
+
+export async function statusRespostas({ viagemId, usuarioId }) {
+  const admin = await prisma.participanteViagem.findFirst({
+    where: { viagemId, usuarioId, papel: "ADMIN" },
+  });
+
+  if (!admin) {
+    throw new Error("SEM_PERMISSAO");
+  }
+
+  const participantes = await prisma.participanteViagem.findMany({
+    where: { viagemId, statusConvite: "ACEITO" },
+    include: { usuario: { select: { nome: true } } },
+  });
+
+  const lista = participantes.map((p) => ({
+    participanteId: p.id,
+    nome: p.usuario.nome,
+    status: p.conversaConcluidaEm ? "CONCLUIDO" : "PENDENTE",
+  }));
+
+  const total = lista.length;
+  const concluidos = lista.filter((p) => p.status === "CONCLUIDO").length;
+
+  return {
+    total,
+    concluidos,
+    pendentes: total - concluidos,
+    todosConcluiram: total > 0 && concluidos === total,
+    participantes: lista,
+  };
 }

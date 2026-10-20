@@ -35,6 +35,9 @@ export async function gerar(req, res) {
     if (error.message === "FALHA_AO_INTERPRETAR_RESPOSTA") {
       return res.status(502).json({ erro: "Não foi possível interpretar a resposta da IA. Tente novamente." });
     }
+    if (error.message === "IA_INDISPONIVEL") {
+      return res.status(503).json({ erro: "O agente de IA está sobrecarregado no momento. Tente novamente em instantes." });
+    }
     console.error(error);
     return res.status(500).json({ erro: "Erro interno ao gerar preferências." });
   }
@@ -60,5 +63,22 @@ export async function editar(req, res) {
     }
     console.error(error);
     return res.status(500).json({ erro: "Erro interno ao editar preferências." });
+  }
+}
+
+export async function status(req, res) {
+  try {
+    const { viagemId } = req.params;
+    const resultado = await preferenciaService.statusRespostas({
+      viagemId,
+      usuarioId: req.usuarioId,
+    });
+    return res.status(200).json(resultado);
+  } catch (error) {
+    if (error.message === "SEM_PERMISSAO") {
+      return res.status(403).json({ erro: "Apenas o administrador pode ver o status das respostas." });
+    }
+    console.error(error);
+    return res.status(500).json({ erro: "Erro interno ao buscar status das respostas." });
   }
 }
