@@ -1,5 +1,7 @@
 import { prisma } from "../db.js";
 import { gerarTexto } from "./gemini.service.js";
+import { notificarParticipantes } from "./email.service.js";
+const APP_URL = process.env.APP_URL ?? "http://localhost:5173";
 
 const QTD_DESTINOS = 3;
 
@@ -79,10 +81,21 @@ async function apurar(viagemId) {
 }
 
 async function confirmarDestino(viagemId, destinoId) {
-  return prisma.viagem.update({
+  const viagem = await prisma.viagem.update({
     where: { id: viagemId },
     data: { destinoFinalId: destinoId, status: "DESTINO_DEFINIDO" },
+    include: { destinoFinal: true },
   });
+
+  notificarParticipantes(viagemId, {
+    assunto: `Destino definido: ${viagem.destinoFinal.nomeDestino}`,
+    titulo: "A galera escolheu o destino!",
+    texto: `O destino da viagem "${viagem.nome}" é ${viagem.destinoFinal.nomeDestino}. Agora é só esperar o roteiro.`,
+    link: `${APP_URL}/viagens/${viagemId}`,
+    textoBotao: "Ver a viagem",
+  });
+
+  return viagem;
 }
 
 async function tentarEncerrarAutomaticamente(viagemId) {

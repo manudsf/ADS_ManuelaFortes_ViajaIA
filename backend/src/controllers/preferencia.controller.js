@@ -82,3 +82,20 @@ export async function status(req, res) {
     return res.status(500).json({ erro: "Erro interno ao buscar status das respostas." });
   }
 }
+
+export async function lembrar(req, res) {
+  try {
+    const { viagemId } = req.params;
+    const resultado = await preferenciaService.lembrarPendentes({
+      viagemId,
+      usuarioId: req.usuarioId,
+    });
+    return res.status(200).json(resultado);
+  } catch (error) {
+    if (error.message === "SEM_PERMISSAO") {
+      return res.status(403).json({ erro: "Apenas o administrador pode enviar lembretes." });
+    }
+    console.error(error);
+    return res.status(500).json({ erro: "Erro interno ao enviar lembretes." });
+  }
+}

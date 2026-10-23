@@ -1,4 +1,5 @@
 import { prisma } from "../db.js";
+import { enviarConvite } from "./email.service.js";
 
 async function buscarParticipanteAdmin(viagemId, usuarioId) {
   return prisma.participanteViagem.findFirst({
@@ -17,14 +18,7 @@ export async function convidarParticipante({ viagemId, email, solicitanteId }) {
     throw new Error("USUARIO_NAO_ENCONTRADO");
   }
 
-  const jaParticipa = await prisma.participanteViagem.findUnique({
-    where: { usuarioId_viagemId: { usuarioId: usuarioConvidado.id, viagemId } },
-  });
-  if (jaParticipa) {
-    throw new Error("JA_CONVIDADO");
-  }
-
-  return prisma.participanteViagem.create({
+const convite = await prisma.participanteViagem.create({
     data: {
       viagemId,
       usuarioId: usuarioConvidado.id,
@@ -32,6 +26,19 @@ export async function convidarParticipante({ viagemId, email, solicitanteId }) {
       statusConvite: "PENDENTE",
     },
   });
+
+  const [viagem, convidador] = await Promise.all([
+    prisma.viagem.findUnique({ where: { id: viagemId } }),
+    prisma.usuario.findUnique({ where: { id: solicitanteId } }),
+  ]);
+
+  enviarConvite({
+    para: usuarioConvidado.email,
+    nomeViagem: viagem.nome,
+    nomeConvidador: convidador.nome,
+  });
+
+  return convite;
 }
 
 export async function confirmarParticipacao({ viagemId, usuarioId }) {

@@ -1,5 +1,19 @@
 import { prisma } from "../db.js";
 import { gerarTexto } from "./gemini.service.js";
+import { enviarLembreteConversa } from "./email.service.js";
+
+export async function lembrarPendentes({ viagemId, usuarioId }) {
+  const admin = await prisma.participanteViagem.findFirst({
+    where: { viagemId, usuarioId, papel: "ADMIN" },
+  });
+
+  if (!admin) {
+    throw new Error("SEM_PERMISSAO");
+  }
+
+  const enviados = await enviarLembreteConversa(viagemId);
+  return { enviados };
+}
 
 async function buscarParticipanteConfirmado(viagemId, usuarioId) {
   const participante = await prisma.participanteViagem.findUnique({

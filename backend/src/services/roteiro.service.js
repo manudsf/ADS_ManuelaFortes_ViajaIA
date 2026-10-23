@@ -1,5 +1,6 @@
 import { prisma } from "../db.js";
 import { gerarTexto } from "./gemini.service.js";
+import { notificarParticipantes } from "./email.service.js";
 
 const MAX_DIAS = 14;
 const TIPOS_VALIDOS = ["HOSPEDAGEM", "PONTO_TURISTICO", "ATIVIDADE"];
@@ -245,6 +246,14 @@ O campo "tipo" deve ser exatamente um de: HOSPEDAGEM, PONTO_TURISTICO, ATIVIDADE
 
 export async function visualizarRoteiro({ viagemId, usuarioId }) {
   await buscarParticipanteConfirmado(viagemId, usuarioId);
+  
+    notificarParticipantes(viagemId, {
+    assunto: `Roteiro pronto: ${viagem.nome}`,
+    titulo: "O roteiro está pronto",
+    texto: `Já montamos o roteiro dia a dia de "${viagem.nome}". Dá uma olhada e se prepare para viajar.`,
+    link: `${process.env.APP_URL ?? "http://localhost:5173"}/viagens/${viagemId}`,
+    textoBotao: "Ver o roteiro",
+  });
 
   const roteiro = await montarRoteiro(viagemId);
   if (!roteiro) {
