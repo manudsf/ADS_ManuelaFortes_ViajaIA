@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { autenticar } from "../middlewares/auth.middleware.js";
-import { criar, excluir, buscar } from "../controllers/viagem.controller.js";
+import { criar, excluir, buscar, listar } from "../controllers/viagem.controller.js";
 import { convidar, confirmar, remover, recusar } from "../controllers/participante.controller.js";
 
 const router = Router();
 
+router.get("/", autenticar, listar);
 router.post("/", autenticar, criar);
 router.get("/:viagemId", autenticar, buscar);
 router.delete("/:viagemId", autenticar, excluir);

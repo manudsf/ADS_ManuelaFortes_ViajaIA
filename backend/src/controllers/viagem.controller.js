@@ -2,7 +2,7 @@ import * as viagemService from "../services/viagem.service.js";
 
 export async function criar(req, res) {
   try {
-    const { nome, dataInicio, dataFim } = req.body;
+    const { nome, dataInicio, dataFim, destino } = req.body;
 
     if (!nome) {
       return res.status(400).json({ erro: "O nome da viagem é obrigatório." });
@@ -12,6 +12,7 @@ export async function criar(req, res) {
       nome,
       dataInicio,
       dataFim,
+      destino,
       criadoPorId: req.usuarioId,
     });
 
@@ -44,6 +45,17 @@ export async function buscar(req, res) {
   }
 }
 
+export async function listar(req, res) {
+  try {
+    const viagens = await viagemService.listarMinhasViagens({
+      usuarioId: req.usuarioId,
+    });
+    return res.status(200).json(viagens);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ erro: "Erro interno ao listar viagens." });
+  }
+}
 export async function excluir(req, res) {
   try {
     const { viagemId } = req.params;
@@ -64,4 +76,5 @@ export async function excluir(req, res) {
     console.error(error);
     return res.status(500).json({ erro: "Erro interno ao excluir viagem." });
   }
+  
 }

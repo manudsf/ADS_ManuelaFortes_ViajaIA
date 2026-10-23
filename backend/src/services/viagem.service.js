@@ -1,26 +1,43 @@
 import { prisma } from "../db.js";
 
-export async function criarViagem({ nome, dataInicio, dataFim, criadoPorId }) {
-  const viagem = await prisma.viagem.create({
-    data: {
-      nome,
-      dataInicio: dataInicio ? new Date(dataInicio) : null,
-      dataFim: dataFim ? new Date(dataFim) : null,
-      criadoPorId,
-      participantes: {
-        create: {
-          usuarioId: criadoPorId,
-          papel: "ADMIN",
-          statusConvite: "ACEITO",
+export async function criarViagem({ nome, dataInicio, dataFim, destino, criadoPorId }) {
+  return prisma.$transaction(async (tx) => {
+    const viagem = await tx.viagem.create({
+      data: {
+        nome,
+        dataInicio: dataInicio ? new Date(dataInicio) : null,
+        dataFim: dataFim ? new Date(dataFim) : null,
+        criadoPorId,
+        status: destino ? "DESTINO_DEFINIDO" : "PLANEJAMENTO",
+        participantes: {
+          create: {
+            usuarioId: criadoPorId,
+            papel: "ADMIN",
+            statusConvite: "ACEITO",
+          },
         },
       },
-    },
-    include: {
-      participantes: true,
-    },
-  });
+      include: { participantes: true },
+    });
 
-  return viagem;
+    if (!destino) {
+      return viagem;
+    }
+
+    const destinoSugerido = await tx.destinoSugerido.create({
+      data: {
+        viagemId: viagem.id,
+        nomeDestino: destino,
+        geradoPorIa: false,
+      },
+    });
+
+    return tx.viagem.update({
+      where: { id: viagem.id },
+      data: { destinoFinalId: destinoSugerido.id },
+      include: { participantes: true, destinoFinal: true },
+    });
+  });
 }
 
 export async function buscarViagemComParticipantes({ viagemId, usuarioId }) {
@@ -50,6 +67,33 @@ export async function buscarViagemComParticipantes({ viagemId, usuarioId }) {
   }
 
   return viagem;
+}
+
+export async function listarMinhasViagens({ usuarioId }) {
+  const participacoes = await prisma.participanteViagem.findMany({
+    where: { usuarioId },
+    include: {
+      viagem: {
+        include: {
+          destinoFinal: { select: { nomeDestino: true } },
+          _count: { select: { participantes: true } },
+        },
+      },
+    },
+    orderBy: { viagem: { criadoEm: "desc" } },
+  });
+
+  return participacoes.map((p) => ({
+    id: p.viagem.id,
+    nome: p.viagem.nome,
+    status: p.viagem.status,
+    dataInicio: p.viagem.dataInicio,
+    dataFim: p.viagem.dataFim,
+    destino: p.viagem.destinoFinal?.nomeDestino ?? null,
+    totalParticipantes: p.viagem._count.participantes,
+    meuPapel: p.papel,
+    meuStatusConvite: p.statusConvite,
+  }));
 }
 
 export async function excluirViagem({ viagemId, solicitanteId }) {
