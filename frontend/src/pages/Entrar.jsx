@@ -32,7 +32,7 @@ export default function Entrar() {
         onSubmit={handleSubmit}
         className="w-full max-w-md space-y-5 rounded-3xl border border-line bg-panel/55 p-10 shadow-2xl shadow-black/30 backdrop-blur-xl"
       >
-        <h1 className="font-display text-3xl text-ink">Pronto para mais uma aventura?</h1>
+        <h2 className="font-display text-2xl text-ink">Bem vindo de volta, viajante! Pronto para mais uma aventura? </h2>
 
         <label className="block text-sm font-medium text-ink">
           E-mail
