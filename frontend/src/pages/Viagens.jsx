@@ -12,12 +12,21 @@ const ROTULO_STATUS = {
   CONCLUIDA: "Concluída",
 };
 
-const TOM_STATUS = {
-  PLANEJAMENTO: "bg-turq",
-  DESTINO_DEFINIDO: "bg-gold",
-  ROTEIRO_PRONTO: "bg-accent",
-  EM_ANDAMENTO: "bg-accent",
-  CONCLUIDA: "bg-line",
+const TOM_PASSO = {
+  responder_convite: "bg-accent",
+  conversar: "bg-accent",
+  ver_roteiro: "bg-turq",
+  votar: "bg-turq",
+  aguardar_conversas: "bg-gold",
+  aguardar_roteiro: "bg-gold",
+  recusou: "bg-line",
+};
+
+const ACAO_PASSO = {
+  responder_convite: { rotulo: "Ver convite", destino: (id) => `/viagens/${id}` },
+  conversar: { rotulo: "Conversar", destino: (id) => `/viagens/${id}/chat` },
+  ver_roteiro: { rotulo: "Ver roteiro", destino: (id) => `/viagens/${id}` },
+  votar: { rotulo: "Ver viagem", destino: (id) => `/viagens/${id}` },
 };
 
 function formatarData(data) {
@@ -39,11 +48,23 @@ export default function Viagens() {
   const [erro, setErro] = useState("");
 
   useEffect(() => {
+    let ativo = true;
+
     api
       .listarViagens()
-      .then(setViagens)
-      .catch((err) => setErro(err.message))
-      .finally(() => setCarregando(false));
+      .then((v) => {
+        if (ativo) setViagens(v);
+      })
+      .catch((err) => {
+        if (ativo) setErro(err.message);
+      })
+      .finally(() => {
+        if (ativo) setCarregando(false);
+      });
+
+    return () => {
+      ativo = false;
+    };
   }, []);
 
   async function responderConvite(viagemId, acao) {
@@ -60,6 +81,9 @@ export default function Viagens() {
   const minhasViagens = viagens.filter((v) => v.meuStatusConvite === "ACEITO");
   const primeiroNome = usuario?.nome?.split(" ")[0] ?? "";
 
+  const viagemComAcao = minhasViagens.filter((v) => v.proximoPasso && ACAO_PASSO[v.proximoPasso.tipo]);
+  const precisamDeVoce = viagemComAcao.length;
+
   return (
     <main className="min-h-screen bg-bg px-6 py-12">
       <div className="mx-auto max-w-5xl">
@@ -73,9 +97,11 @@ export default function Viagens() {
             </p>
             <h1 className="mt-2 font-display text-6xl leading-none text-ink">Minhas viagens</h1>
             <p className="mt-3 text-base text-muted">
-              {minhasViagens.length > 0
-                ? `Você tem ${minhasViagens.length} viagem(ns) em andamento.`
-                : "Sua próxima aventura começa com um clique."}
+              {precisamDeVoce > 0
+                ? `Você tem ${precisamDeVoce} viagem(ns) esperando por você.`
+                : minhasViagens.length > 0
+                  ? "Tudo em dia. Quando o grupo precisar de você, avisamos."
+                  : "Sua próxima aventura começa com um nome."}
             </p>
           </div>
           <div className="flex gap-3">
@@ -147,7 +173,7 @@ export default function Viagens() {
               >
                 <p className="font-display text-3xl text-ink">Ainda não tem viagem por aqui.</p>
                 <p className="max-w-md text-muted">
-                  Dê inicio a aventura, chame a turma e deixe a IA cuidar do planejamento.
+                  Dê um nome para a aventura, chame a turma e deixe a IA cuidar do planejamento.
                 </p>
                 <button
                   onClick={() => navigate("/viagens/nova")}
@@ -158,41 +184,64 @@ export default function Viagens() {
               </motion.div>
             ) : (
               <div className="mt-5 grid gap-5 md:grid-cols-2">
-                {minhasViagens.map((v, i) => (
-                  <motion.div key={v.id} {...entrada(i + 2)}>
-                    <Link
-                      to={`/viagens/${v.id}`}
-                      className="group relative block overflow-hidden rounded-3xl border border-line bg-card p-7 transition hover:-translate-y-1 hover:shadow-xl"
-                    >
-                      <span
-                        className={`absolute inset-y-0 left-0 w-1.5 ${TOM_STATUS[v.status] ?? "bg-line"}`}
-                        aria-hidden="true"
-                      />
-                      <div className="flex items-start justify-between gap-4">
-                        <h3 className="font-display text-3xl text-ink">{v.nome}</h3>
-                        {v.meuPapel === "ADMIN" && (
-                          <span className="rounded-full bg-gold px-3 py-1 text-xs font-bold text-on-accent">
-                            Admin
-                          </span>
+                {minhasViagens.map((v, i) => {
+                  const passo = v.proximoPasso;
+                  const acao = passo ? ACAO_PASSO[passo.tipo] : null;
+
+                  return (
+                    <motion.div key={v.id} {...entrada(i + 2)}>
+                      <Link
+                        to={`/viagens/${v.id}`}
+                        className="group relative block overflow-hidden rounded-3xl border border-line bg-card p-7 transition hover:-translate-y-1 hover:shadow-xl"
+                      >
+                        <span
+                          className={`absolute inset-y-0 left-0 w-1.5 ${TOM_PASSO[passo?.tipo] ?? "bg-line"}`}
+                          aria-hidden="true"
+                        />
+                        <div className="flex items-start justify-between gap-4">
+                          <h3 className="font-display text-3xl text-ink">{v.nome}</h3>
+                          {v.meuPapel === "ADMIN" && (
+                            <span className="rounded-full bg-gold px-3 py-1 text-xs font-bold text-on-accent">
+                              Admin
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-3 text-base font-medium text-ink">
+                          {v.destino ?? "Destino a definir"}
+                        </p>
+                        <p className="mt-1 text-sm text-muted">
+                          {formatarData(v.dataInicio)} · {v.totalParticipantes} participante(s)
+                        </p>
+
+                        {passo && (
+                          <div className="mt-5 rounded-2xl bg-bg p-4">
+                            <p className="text-sm font-medium text-ink">{passo.texto}</p>
+                            {acao && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  navigate(acao.destino(v.id));
+                                }}
+                                className="mt-3 rounded-full bg-accent px-5 py-2 text-sm font-bold text-on-accent"
+                              >
+                                {acao.rotulo}
+                              </button>
+                            )}
+                          </div>
                         )}
-                      </div>
-                      <p className="mt-3 text-base font-medium text-ink">
-                        {v.destino ?? "Destino a definir"}
-                      </p>
-                      <p className="mt-1 text-sm text-muted">
-                        {formatarData(v.dataInicio)} · {v.totalParticipantes} participante(s)
-                      </p>
-                      <div className="mt-6 flex items-center justify-between">
-                        <span className="rounded-full border border-line px-3 py-1 text-xs font-bold text-ink">
-                          {ROTULO_STATUS[v.status] ?? v.status}
-                        </span>
-                        <span className="text-sm font-bold text-accent transition group-hover:translate-x-1">
-                          Abrir →
-                        </span>
-                      </div>
-                    </Link>
-                  </motion.div>
-                ))}
+
+                        <div className="mt-5 flex items-center justify-between">
+                          <span className="rounded-full border border-line px-3 py-1 text-xs font-bold text-ink">
+                            {ROTULO_STATUS[v.status] ?? v.status}
+                          </span>
+                          <span className="text-sm font-bold text-accent transition group-hover:translate-x-1">
+                            Abrir →
+                          </span>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </section>

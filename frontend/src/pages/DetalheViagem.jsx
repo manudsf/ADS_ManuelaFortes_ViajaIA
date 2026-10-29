@@ -35,6 +35,8 @@ export default function DetalheViagem() {
   const [emailConvite, setEmailConvite] = useState("");
   const [enviandoConvite, setEnviandoConvite] = useState(false);
   const [confirmacao, setConfirmacao] = useState(null);
+  const [linkConvite, setLinkConvite] = useState(null);
+  const [copiado, setCopiado] = useState(false);
 
   async function carregar() {
     try {
@@ -120,6 +122,31 @@ export default function DetalheViagem() {
     }
   }
 
+  async function gerarLink() {
+    setErro("");
+    try {
+      setLinkConvite(await api.gerarLinkConvite(id));
+      setCopiado(false);
+    } catch (err) {
+      setErro(err.message);
+    }
+  }
+
+  async function copiarLink() {
+    await navigator.clipboard.writeText(linkConvite.url);
+    setCopiado(true);
+  }
+
+  async function desativarLink() {
+    setErro("");
+    try {
+      await api.revogarLinkConvite(id);
+      setLinkConvite(null);
+    } catch (err) {
+      setErro(err.message);
+    }
+  }
+
   const textoConfirmacao =
     confirmacao?.tipo === "remover"
       ? {
@@ -129,8 +156,7 @@ export default function DetalheViagem() {
         }
       : {
           titulo: "Excluir a viagem?",
-          texto:
-            "Todo o grupo perde a viagem, as conversas e os roteiros. Essa ação não pode ser desfeita.",
+          texto: "Todo o grupo perde a viagem, as conversas e os roteiros. Essa ação não pode ser desfeita.",
           textoConfirmar: "Sim, excluir",
         };
 
@@ -225,26 +251,58 @@ export default function DetalheViagem() {
         </section>
 
         {souAdmin && (
-          <section className="mt-10 rounded-3xl border border-line bg-card p-7">
-            <h2 className="font-display text-3xl text-ink">Chamar mais alguém</h2>
-            <form onSubmit={convidar} className="mt-5 flex flex-wrap gap-3">
-              <input
-                type="email"
-                required
-                placeholder="E-mail de quem já tem conta"
-                value={emailConvite}
-                onChange={(e) => setEmailConvite(e.target.value)}
-                className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-4 py-3 text-ink placeholder:text-muted"
-              />
-              <button
-                type="submit"
-                disabled={enviandoConvite}
-                className="rounded-full bg-accent px-6 py-3 font-bold text-on-accent disabled:opacity-60"
-              >
-                {enviandoConvite ? "Enviando..." : "Enviar convite"}
-              </button>
-            </form>
-          </section>
+          <>
+            <section className="mt-10 rounded-3xl border border-line bg-card p-7">
+              <h2 className="font-display text-3xl text-ink">Chamar mais alguém</h2>
+              <form onSubmit={convidar} className="mt-5 flex flex-wrap gap-3">
+                <input
+                  type="email"
+                  required
+                  placeholder="E-mail de quem já tem conta"
+                  value={emailConvite}
+                  onChange={(e) => setEmailConvite(e.target.value)}
+                  className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-4 py-3 text-ink placeholder:text-muted"
+                />
+                <button
+                  type="submit"
+                  disabled={enviandoConvite}
+                  className="rounded-full bg-accent px-6 py-3 font-bold text-on-accent disabled:opacity-60"
+                >
+                  {enviandoConvite ? "Enviando..." : "Enviar convite"}
+                </button>
+              </form>
+            </section>
+
+            <section className="mt-6 rounded-3xl border border-line bg-card p-7">
+              <h2 className="font-display text-3xl text-ink">Convidar por link</h2>
+              <p className="mt-2 text-muted">
+                Mande o link no WhatsApp. Quem abrir entra no grupo, e o link vale por 7 dias.
+              </p>
+
+              {!linkConvite ? (
+                <button
+                  onClick={gerarLink}
+                  className="mt-5 rounded-full border border-turq px-6 py-3 font-bold text-turq"
+                >
+                  Gerar link
+                </button>
+              ) : (
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <input
+                    readOnly
+                    value={linkConvite.url}
+                    className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-4 py-3 text-ink"
+                  />
+                  <button onClick={copiarLink} className="rounded-full bg-turq px-6 py-3 font-bold text-on-accent">
+                    {copiado ? "Copiado!" : "Copiar"}
+                  </button>
+                  <button onClick={desativarLink} className="rounded-full border border-line px-5 py-3 font-medium text-ink">
+                    Desativar
+                  </button>
+                </div>
+              )}
+            </section>
+          </>
         )}
 
         {confirmadoOuAdmin(euNaViagem) && (
@@ -270,10 +328,7 @@ export default function DetalheViagem() {
 
         {souAdmin && (
           <section className="mt-14 border-t border-line pt-8">
-            <button
-              onClick={() => setConfirmacao({ tipo: "excluir" })}
-              className="text-sm font-bold text-accent"
-            >
+            <button onClick={() => setConfirmacao({ tipo: "excluir" })} className="text-sm font-bold text-accent">
               Excluir esta viagem
             </button>
           </section>

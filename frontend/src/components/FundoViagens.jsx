@@ -13,7 +13,7 @@ const IMAGENS = [
   "/imagens/fundo/13.jpg"
 ];
 
-export default function FundoViagens({ intervalo = 6000 }) {
+export default function FundoViagens({ intervalo = 4000 }) {
   const [slide, setSlide] = useState({ atual: 0, anterior: null });
 
   useEffect(() => {

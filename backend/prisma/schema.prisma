@@ -57,6 +57,7 @@ model Usuario {
   votos                VotoDestino[]
   despesasPagas        Despesa[]             @relation("DespesaPagaPor")
   participacoesDespesa ParticipacaoDespesa[]
+  convitesLinkCriados ConviteLink[] @relation("ConvitesCriados")
 
   @@map("usuario")
 }
@@ -78,6 +79,8 @@ model Viagem {
   destinosSugeridos DestinoSugerido[]    @relation("DestinosDaViagem")
   despesas          Despesa[]
   roteiro           Roteiro?
+
+  convitesLink ConviteLink[]
 
   @@map("viagem")
 }
@@ -205,4 +208,18 @@ model ParticipacaoDespesa {
 
   @@unique([despesaId, usuarioId])
   @@map("participacao_despesa")
+}
+
+model ConviteLink {
+  id        String   @id @default(uuid())
+  viagemId  String   @map("viagem_id")
+  token     String   @unique
+  criadoPorId String @map("criado_por")
+  expiraEm  DateTime @map("expira_em")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  viagem    Viagem  @relation(fields: [viagemId], references: [id])
+  criadoPor Usuario @relation("ConvitesCriados", fields: [criadoPorId], references: [id])
+
+  @@map("convite_link")
 }

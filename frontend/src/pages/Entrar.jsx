@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import FundoViagens from "../components/FundoViagens.jsx";
 
 export default function Entrar() {
+  const [params] = useSearchParams();
+  const voltar = params.get("voltar");
   const { entrar } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -17,7 +19,7 @@ export default function Entrar() {
     setCarregando(true);
     try {
       await entrar(email, senha);
-      navigate("/viagens");
+      navigate(voltar?.startsWith("/") ? voltar : "/viagens");
     } catch (err) {
       setErro(err.message);
     } finally {

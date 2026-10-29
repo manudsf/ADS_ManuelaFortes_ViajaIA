@@ -77,23 +77,68 @@ export async function listarMinhasViagens({ usuarioId }) {
         include: {
           destinoFinal: { select: { nomeDestino: true } },
           _count: { select: { participantes: true } },
+          roteiro: { select: { id: true } },
+          participantes: {
+            where: { statusConvite: "ACEITO" },
+            select: { conversaConcluidaEm: true },
+          },
         },
       },
     },
     orderBy: { viagem: { criadoEm: "desc" } },
   });
 
-  return participacoes.map((p) => ({
-    id: p.viagem.id,
-    nome: p.viagem.nome,
-    status: p.viagem.status,
-    dataInicio: p.viagem.dataInicio,
-    dataFim: p.viagem.dataFim,
-    destino: p.viagem.destinoFinal?.nomeDestino ?? null,
-    totalParticipantes: p.viagem._count.participantes,
-    meuPapel: p.papel,
-    meuStatusConvite: p.statusConvite,
-  }));
+  return participacoes.map((p) => {
+    const v = p.viagem;
+    const pendentesConversa = v.participantes.filter((a) => !a.conversaConcluidaEm).length;
+    const temRoteiro = Boolean(v.roteiro);
+
+    return {
+      id: v.id,
+      nome: v.nome,
+      status: v.status,
+      dataInicio: v.dataInicio,
+      dataFim: v.dataFim,
+      destino: v.destinoFinal?.nomeDestino ?? null,
+      totalParticipantes: v._count.participantes,
+      meuPapel: p.papel,
+      meuStatusConvite: p.statusConvite,
+      conversasPendentes: pendentesConversa,
+      temRoteiro,
+      proximoPasso: calcularProximoPasso({
+        meuStatusConvite: p.statusConvite,
+        minhaConversaConcluida: Boolean(p.conversaConcluidaEm),
+        temDestino: Boolean(v.destinoFinalId),
+        temRoteiro,
+        pendentesConversa,
+      }),
+    };
+  });
+}
+
+function calcularProximoPasso({ meuStatusConvite, minhaConversaConcluida, temDestino, temRoteiro, pendentesConversa }) {
+  if (meuStatusConvite === "PENDENTE") {
+    return { tipo: "responder_convite", texto: "Você foi convidado para esta viagem" };
+  }
+  if (meuStatusConvite === "RECUSADO") {
+    return { tipo: "recusou", texto: "Você recusou o convite" };
+  }
+  if (!minhaConversaConcluida) {
+    return { tipo: "conversar", texto: "Conte suas preferências para a IA" };
+  }
+  if (temRoteiro) {
+    return { tipo: "ver_roteiro", texto: "Roteiro pronto para ver" };
+  }
+  if (!temDestino) {
+    if (pendentesConversa > 0) {
+      return {
+        tipo: "aguardar_conversas",
+        texto: `Faltam ${pendentesConversa} pessoa(s) conversarem com o agente`,
+      };
+    }
+    return { tipo: "votar", texto: "Tudo certo! Hora de escolher o destino" };
+  }
+  return { tipo: "aguardar_roteiro", texto: "Destino definido, falta gerar o roteiro" };
 }
 
 export async function excluirViagem({ viagemId, solicitanteId }) {
@@ -122,5 +167,6 @@ export async function excluirViagem({ viagemId, solicitanteId }) {
     prisma.destinoSugerido.deleteMany({ where: { viagemId } }),
     prisma.participanteViagem.deleteMany({ where: { viagemId } }),
     prisma.viagem.delete({ where: { id: viagemId } }),
+    prisma.conviteLink.deleteMany({ where: { viagemId } }),
   ]);
 }

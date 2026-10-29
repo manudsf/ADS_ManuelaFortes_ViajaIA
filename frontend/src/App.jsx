@@ -6,6 +6,7 @@ import Viagens from "./pages/Viagens.jsx";
 import NovaViagem from "./pages/NovaViagem.jsx";
 import DetalheViagem from "./pages/DetalheViagem.jsx";
 import ChatAgente from "./pages/ChatAgente.jsx";
+import ConvitePublico from "./pages/ConvitePublico.jsx";
 
 function RotaPrivada({ children }) {
   const { autenticado } = useAuth();
@@ -52,6 +53,7 @@ export default function App() {
               </RotaPrivada>
             }
           />
+          <Route path="/convite/:token" element={<ConvitePublico />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

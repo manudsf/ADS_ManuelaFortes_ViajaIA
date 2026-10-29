@@ -82,4 +82,9 @@ export const api = {
   listarViagens: () => requisicao("/viagens"),
   removerParticipante: (viagemId, participanteId) =>
   requisicao(`/viagens/${viagemId}/participantes/${participanteId}`, { metodo: "DELETE" }),
+
+  gerarLinkConvite: (viagemId) => requisicao(`/convites/viagem/${viagemId}`, { metodo: "POST" }),
+revogarLinkConvite: (viagemId) => requisicao(`/convites/viagem/${viagemId}`, { metodo: "DELETE" }),
+buscarConvite: (token) => requisicao(`/convites/${token}`),
+aceitarConvite: (token) => requisicao(`/convites/${token}/aceitar`, { metodo: "POST" }),
 };
