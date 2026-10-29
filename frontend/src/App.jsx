@@ -4,6 +4,8 @@ import Entrar from "./pages/Entrar.jsx";
 import Cadastro from "./pages/Cadastro.jsx";
 import Viagens from "./pages/Viagens.jsx";
 import NovaViagem from "./pages/NovaViagem.jsx";
+import DetalheViagem from "./pages/DetalheViagem.jsx";
+import ChatAgente from "./pages/ChatAgente.jsx";
 
 function RotaPrivada({ children }) {
   const { autenticado } = useAuth();
@@ -15,23 +17,38 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<p className="p-10">Landing (próximo passo)</p>} />
+          <Route path="/" element={<Navigate to="/entrar" replace />} />
           <Route path="/entrar" element={<Entrar />} />
           <Route path="/cadastro" element={<Cadastro />} />
-          <Route
-  path="/viagens/nova"
-  element={
-    <RotaPrivada>
-      <NovaViagem />
-    </RotaPrivada>
-  }
-/>
-<Route path="/viagens/:id" element={<RotaPrivada><p className="p-10 text-ink">Detalhe da viagem: próximo passo.</p></RotaPrivada>} />
           <Route
             path="/viagens"
             element={
               <RotaPrivada>
                 <Viagens />
+              </RotaPrivada>
+            }
+          />
+          <Route
+            path="/viagens/nova"
+            element={
+              <RotaPrivada>
+                <NovaViagem />
+              </RotaPrivada>
+            }
+          />
+          <Route
+            path="/viagens/:id"
+            element={
+              <RotaPrivada>
+                <DetalheViagem />
+              </RotaPrivada>
+            }
+          />
+          <Route
+            path="/viagens/:id/chat"
+            element={
+              <RotaPrivada>
+                <ChatAgente />
               </RotaPrivada>
             }
           />

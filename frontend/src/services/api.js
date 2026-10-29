@@ -80,4 +80,6 @@ export const api = {
   gerarRoteiro: (viagemId, datas) =>
     requisicao(`/viagens/${viagemId}/roteiro/gerar`, { metodo: "POST", corpo: datas }),
   listarViagens: () => requisicao("/viagens"),
+  removerParticipante: (viagemId, participanteId) =>
+  requisicao(`/viagens/${viagemId}/participantes/${participanteId}`, { metodo: "DELETE" }),
 };
