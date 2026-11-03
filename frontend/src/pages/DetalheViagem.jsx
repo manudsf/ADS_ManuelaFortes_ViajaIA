@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { api } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import ConfirmacaoModal from "../components/ConfirmacaoModal.jsx";
+import { formatarDataBR } from "../utils/data.js";
 
 const ROTULO_STATUS = {
   PLANEJAMENTO: "Planejando",
@@ -13,11 +14,9 @@ const ROTULO_STATUS = {
   CONCLUIDA: "Concluída",
 };
 
-const acoesEmBreve = [{ rotulo: "Votar no destino" }, { rotulo: "Ver o roteiro" }];
-
 function formatarData(data) {
   if (!data) return "Datas a definir";
-  return new Date(data).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  return formatarDataBR(data);
 }
 
 function confirmadoOuAdmin(participante) {
@@ -316,12 +315,22 @@ export default function DetalheViagem() {
                 <p className="font-medium text-ink">Conversar com o agente</p>
                 <p className="mt-2 text-sm text-muted">Conte suas preferências para a IA.</p>
               </Link>
-              {acoesEmBreve.map((acao) => (
-                <div key={acao.rotulo} className="rounded-3xl border border-dashed border-line bg-card p-6 text-muted">
-                  <p className="font-medium text-ink">{acao.rotulo}</p>
-                  <p className="mt-2 text-sm">Em breve</p>
-                </div>
-              ))}
+
+              <Link
+                to={`/viagens/${id}/destinos`}
+                className="rounded-3xl border border-line bg-card p-6 transition hover:-translate-y-1 hover:shadow-xl"
+              >
+                <p className="font-medium text-ink">Votar no destino</p>
+                <p className="mt-2 text-sm text-muted">Escolha o lugar que o grupo vai curtir.</p>
+              </Link>
+
+              <Link
+                to={`/viagens/${id}/roteiro`}
+                className="rounded-3xl border border-line bg-card p-6 transition hover:-translate-y-1 hover:shadow-xl"
+              >
+                <p className="font-medium text-ink">Ver o roteiro</p>
+                <p className="mt-2 text-sm text-muted">O passo a passo dia a dia da viagem.</p>
+              </Link>
             </div>
           </section>
         )}

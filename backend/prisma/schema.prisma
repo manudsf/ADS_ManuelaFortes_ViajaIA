@@ -40,8 +40,8 @@ enum TipoItemRoteiro {
   HOSPEDAGEM
   PONTO_TURISTICO
   ATIVIDADE
+  RESTAURANTE
 }
-
 // ---------- Entidades ----------
 
 model Usuario {
@@ -163,6 +163,7 @@ model Roteiro {
 
   viagem Viagem        @relation(fields: [viagemId], references: [id])
   itens  ItemRoteiro[]
+  resumo Json?
 
   @@map("roteiro")
 }
@@ -175,6 +176,8 @@ model ItemRoteiro {
   titulo    String
   descricao String?
   ordem     Int
+  periodo String?
+  valor   Float?
 
   roteiro Roteiro @relation(fields: [roteiroId], references: [id])
 

@@ -7,6 +7,8 @@ import NovaViagem from "./pages/NovaViagem.jsx";
 import DetalheViagem from "./pages/DetalheViagem.jsx";
 import ChatAgente from "./pages/ChatAgente.jsx";
 import ConvitePublico from "./pages/ConvitePublico.jsx";
+import VotacaoDestinos from "./pages/VotacaoDestinos.jsx";
+import RoteiroViagem from "./pages/RoteiroViagem.jsx";
 
 function RotaPrivada({ children }) {
   const { autenticado } = useAuth();
@@ -52,7 +54,23 @@ export default function App() {
                 <ChatAgente />
               </RotaPrivada>
             }
-          />
+            />
+            <Route
+  path="/viagens/:id/destinos"
+  element={
+    <RotaPrivada>
+      <VotacaoDestinos />
+    </RotaPrivada>
+  }
+/>
+<Route
+  path="/viagens/:id/roteiro"
+  element={
+    <RotaPrivada>
+      <RoteiroViagem />
+    </RotaPrivada>
+  }
+/>
           <Route path="/convite/:token" element={<ConvitePublico />} />
         </Routes>
       </BrowserRouter>

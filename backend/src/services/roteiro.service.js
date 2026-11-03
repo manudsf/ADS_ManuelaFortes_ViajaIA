@@ -3,8 +3,10 @@ import { gerarTexto } from "./gemini.service.js";
 import { notificarParticipantes } from "./email.service.js";
 
 const MAX_DIAS = 14;
-const TIPOS_VALIDOS = ["HOSPEDAGEM", "PONTO_TURISTICO", "ATIVIDADE"];
+const TIPOS_VALIDOS = ["HOSPEDAGEM", "PONTO_TURISTICO", "ATIVIDADE", "RESTAURANTE"];
+const PERIODOS = ["MANHA", "TARDE", "NOITE"];
 const MS_POR_DIA = 24 * 60 * 60 * 1000;
+const APP_URL = process.env.APP_URL ?? "http://localhost:5173";
 
 function formatarData(data) {
   return data.toISOString().slice(0, 10);
@@ -51,6 +53,17 @@ function calcularPeriodo(dataInicio, dataFim) {
   return { inicio, fim, dias };
 }
 
+function sanitizarResumo(r) {
+  if (!r || typeof r !== "object") return null;
+  const numero = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+  return {
+    hospedagem: r.hospedagem && typeof r.hospedagem === "object" ? r.hospedagem : null,
+    custoEstimadoPorPessoa: numero(r.custoEstimadoPorPessoa),
+    observacoes: typeof r.observacoes === "string" ? r.observacoes.trim() : null,
+  };
+}
+
 function interpretarRoteiro(texto, dias) {
   let dados;
   try {
@@ -59,44 +72,49 @@ function interpretarRoteiro(texto, dias) {
     throw new Error("FALHA_AO_INTERPRETAR_RESPOSTA");
   }
 
-  const lista = Array.isArray(dados) ? dados : dados?.itens;
-  if (!Array.isArray(lista)) {
+  if (!dados || !Array.isArray(dados.dias)) {
     throw new Error("FALHA_AO_INTERPRETAR_RESPOSTA");
   }
 
-  const itens = lista
-    .map((item) => ({
-      dia: Number(item?.dia),
-      tipo: item?.tipo,
-      titulo: typeof item?.titulo === "string" ? item.titulo.trim() : "",
-      descricao: typeof item?.descricao === "string" ? item.descricao.trim() : null,
-    }))
-    .filter(
-      (item) =>
-        Number.isInteger(item.dia) &&
-        item.dia >= 1 &&
-        item.dia <= dias &&
-        TIPOS_VALIDOS.includes(item.tipo) &&
-        item.titulo
-    );
+  const itens = [];
 
-  const diasCobertos = new Set(itens.map((item) => item.dia));
+  for (const d of dados.dias) {
+    const dia = Number(d?.dia);
+    if (!Number.isInteger(dia) || dia < 1 || dia > dias || !Array.isArray(d.itens)) continue;
+
+    for (const it of d.itens) {
+      const periodo = String(it?.periodo ?? "").toUpperCase();
+      const tipo = String(it?.tipo ?? "").toUpperCase();
+      const titulo = typeof it?.titulo === "string" ? it.titulo.trim() : "";
+
+      if (!PERIODOS.includes(periodo) || !TIPOS_VALIDOS.includes(tipo) || !titulo) continue;
+
+      itens.push({
+        dia,
+        periodo,
+        tipo,
+        titulo,
+        descricao: typeof it.descricao === "string" ? it.descricao.trim() : null,
+        valor: typeof it.valor === "number" && Number.isFinite(it.valor) ? it.valor : null,
+      });
+    }
+  }
+
+  const diasCobertos = new Set(itens.map((i) => i.dia));
   if (diasCobertos.size < dias) {
     throw new Error("FALHA_AO_INTERPRETAR_RESPOSTA");
   }
 
-  const ordemPorDia = {};
+  const ordemPeriodo = Object.fromEntries(PERIODOS.map((p, i) => [p, i]));
+  itens.sort((a, b) => a.dia - b.dia || ordemPeriodo[a.periodo] - ordemPeriodo[b.periodo]);
 
-  return itens
-    .sort(
-      (a, b) =>
-        a.dia - b.dia ||
-        Number(b.tipo === "HOSPEDAGEM") - Number(a.tipo === "HOSPEDAGEM")
-    )
-    .map((item) => {
-      ordemPorDia[item.dia] = (ordemPorDia[item.dia] ?? 0) + 1;
-      return { ...item, ordem: ordemPorDia[item.dia] };
-    });
+  const contadorPorDia = {};
+  const itensComOrdem = itens.map((item) => {
+    contadorPorDia[item.dia] = (contadorPorDia[item.dia] ?? 0) + 1;
+    return { ...item, ordem: contadorPorDia[item.dia] };
+  });
+
+  return { itens: itensComOrdem, resumo: sanitizarResumo(dados.resumo) };
 }
 
 async function montarRoteiro(viagemId) {
@@ -121,10 +139,11 @@ async function montarRoteiro(viagemId) {
     }
     porDia.get(item.dia).push({
       id: item.id,
+      periodo: item.periodo,
       tipo: item.tipo,
       titulo: item.titulo,
       descricao: item.descricao,
-      ordem: item.ordem,
+      valor: item.valor,
     });
   }
 
@@ -133,6 +152,7 @@ async function montarRoteiro(viagemId) {
     data: viagem.dataInicio
       ? formatarData(new Date(viagem.dataInicio.getTime() + (dia - 1) * MS_POR_DIA))
       : null,
+    totalDia: itens.reduce((soma, i) => soma + (i.valor ?? 0), 0),
     itens,
   }));
 
@@ -142,6 +162,7 @@ async function montarRoteiro(viagemId) {
     dataInicio: viagem.dataInicio,
     dataFim: viagem.dataFim,
     geradoEm: roteiro.geradoEm,
+    resumo: roteiro.resumo ?? null,
     dias,
   };
 }
@@ -183,6 +204,8 @@ export async function gerarRoteiro({ viagemId, usuarioId, dataInicio, dataFim })
     throw erro;
   }
 
+  const pessoas = participantes.length;
+
   const perfis = participantes
     .map((p, i) => {
       const pref = p.preferencia;
@@ -196,44 +219,66 @@ export async function gerarRoteiro({ viagemId, usuarioId, dataInicio, dataFim })
   const menorOrcamento = orcamentos.length > 0 ? Math.min(...orcamentos) : null;
 
   const prompt = `
-Você é o agente de IA do ViajaIA. Monte um roteiro de viagem dia a dia para um grupo.
+Você é um consultor de viagens do ViajaIA. Monte um roteiro DETALHADO e prático, com lugares reais do destino.
 
 Destino: ${viagem.destinoFinal.nomeDestino}
+Pessoas no grupo: ${pessoas}
 Duração: ${dias} dia(s), de ${formatarData(inicio)} a ${formatarData(fim)}
-Menor orçamento individual informado (por pessoa, para a viagem inteira): ${menorOrcamento ?? "não informado"}
+Menor orçamento individual informado (por pessoa, para a viagem inteira, em R$): ${menorOrcamento ?? "não informado"}
 Preferências anônimas do grupo:
 ${perfis}
 
 Regras:
-- Gere itens para TODOS os dias, de 1 a ${dias}.
-- No dia 1, inclua exatamente 1 item do tipo HOSPEDAGEM (a mesma hospedagem vale para toda a estadia) e informe o valor aproximado da diária na descrição.
-- Em cada dia, inclua de 2 a 4 itens dos tipos PONTO_TURISTICO ou ATIVIDADE, em ordem cronológica (manhã, tarde, noite).
-- Alterne os tipos de atividade (praia, cultura, aventura, gastronomia etc.) para equilibrar os interesses do grupo ao longo dos dias.
+- Gere TODOS os dias, de 1 a ${dias}.
+- Cada dia deve ter itens nos três períodos: MANHA, TARDE e NOITE.
+- Inclua pelo menos 1 item do tipo RESTAURANTE por dia (almoço ou jantar), com nome real, especialidade e faixa de preço ($, $$ ou $$$) na descrição.
+- Na descrição de cada item, dê detalhes práticos: o que fazer, como chegar, horário sugerido e uma dica.
+- No dia 1, inclua um item HOSPEDAGEM (check-in) no período TARDE ou NOITE.
+- Em "valor", coloque o custo aproximado em R$ por pessoa para aquele item (0 se for gratuito).
+- Em "resumo.hospedagem", sugira UMA hospedagem real no destino, com bairro, tipo, preço da diária em R$ para o grupo e o motivo da escolha.
+- Calcule "resumo.custoEstimadoPorPessoa" somando hospedagem dividida pelas pessoas, transporte, alimentação e passeios para a viagem inteira. Esse valor deve caber no menor orçamento informado, quando houver.
 - Respeite todas as restrições do grupo.
-- Mantenha o custo total estimado por pessoa dentro do menor orçamento informado (se houver) e cite valores aproximados em reais (R$) nas descrições quando fizer sentido.
-- Use apenas lugares reais e conhecidos do destino.
 - Não cite participantes nem atribua preferências a pessoas.
+- Os valores são estimativas, não cotações exatas.
 
-Responda APENAS com um JSON válido, sem markdown e sem texto adicional, no formato:
+Responda APENAS com JSON válido, sem markdown, no formato:
 {
-  "itens": [
-    { "dia": 1, "tipo": "HOSPEDAGEM", "titulo": "string", "descricao": "string" }
+  "resumo": {
+    "hospedagem": { "nome": "string", "tipo": "hotel | pousada | resort | apartamento", "bairro": "string", "precoDiaria": number, "motivo": "string" },
+    "custoEstimadoPorPessoa": number,
+    "observacoes": "string"
+  },
+  "dias": [
+    {
+      "dia": 1,
+      "itens": [
+        { "periodo": "MANHA | TARDE | NOITE", "tipo": "PONTO_TURISTICO | ATIVIDADE | RESTAURANTE | HOSPEDAGEM", "titulo": "string", "descricao": "string", "valor": number }
+      ]
+    }
   ]
 }
-O campo "tipo" deve ser exatamente um de: HOSPEDAGEM, PONTO_TURISTICO, ATIVIDADE.
 `;
 
   const texto = await gerarTexto({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
   });
 
-  const itens = interpretarRoteiro(texto, dias);
+  const { itens, resumo } = interpretarRoteiro(texto, dias);
+
+  const resumoFinal = {
+    ...(resumo ?? {}),
+    orcamentoPorPessoa: menorOrcamento,
+    pessoas,
+    dataInicio: formatarData(inicio),
+    dataFim: formatarData(fim),
+    dias,
+  };
 
   await prisma.$transaction([
     prisma.itemRoteiro.deleteMany({ where: { roteiro: { viagemId } } }),
     prisma.roteiro.deleteMany({ where: { viagemId } }),
     prisma.roteiro.create({
-      data: { viagemId, itens: { create: itens } },
+      data: { viagemId, resumo: resumoFinal, itens: { create: itens } },
     }),
     prisma.viagem.update({
       where: { id: viagemId },
@@ -241,19 +286,21 @@ O campo "tipo" deve ser exatamente um de: HOSPEDAGEM, PONTO_TURISTICO, ATIVIDADE
     }),
   ]);
 
-  return montarRoteiro(viagemId);
+  const roteiroPronto = await montarRoteiro(viagemId);
+
+  notificarParticipantes(viagemId, {
+    assunto: `Roteiro pronto: ${viagem.nome}`,
+    titulo: "O roteiro está pronto",
+    texto: `Já montamos o roteiro dia a dia de "${viagem.nome}". Dá uma olhada e se prepare para viajar.`,
+    link: `${APP_URL}/viagens/${viagemId}/roteiro`,
+    textoBotao: "Ver o roteiro",
+  });
+
+  return roteiroPronto;
 }
 
 export async function visualizarRoteiro({ viagemId, usuarioId }) {
   await buscarParticipanteConfirmado(viagemId, usuarioId);
-  
-    notificarParticipantes(viagemId, {
-    assunto: `Roteiro pronto: ${viagem.nome}`,
-    titulo: "O roteiro está pronto",
-    texto: `Já montamos o roteiro dia a dia de "${viagem.nome}". Dá uma olhada e se prepare para viajar.`,
-    link: `${process.env.APP_URL ?? "http://localhost:5173"}/viagens/${viagemId}`,
-    textoBotao: "Ver o roteiro",
-  });
 
   const roteiro = await montarRoteiro(viagemId);
   if (!roteiro) {

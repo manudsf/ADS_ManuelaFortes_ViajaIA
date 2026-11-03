@@ -53,3 +53,32 @@ body {
   from { transform: scale(1); }
   to { transform: scale(1.12); }
 }
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  :root,
+  [data-theme="dark"] {
+    --bg: #ffffff;
+    --ink: #13324a;
+    --muted: #3d5a6c;
+    --card: #ffffff;
+    --line: #eadfcb;
+    --panel: #f3ead9;
+    --on-accent: #13324a;
+  }
+
+  html,
+  body,
+  main {
+    background: #ffffff !important;
+    min-height: auto !important;
+  }
+
+  .rounded-2xl,
+  .rounded-3xl {
+    break-inside: avoid;
+  }
+}
