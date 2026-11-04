@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import ConfirmacaoModal from "../components/ConfirmacaoModal.jsx";
 import { formatarDataBR } from "../utils/data.js";
+import html2pdf from "html2pdf.js";
 
 const PERIODOS = [
   { chave: "MANHA", rotulo: "Manhã" },
@@ -50,10 +51,12 @@ function ItemCard({ item }) {
 export default function RoteiroViagem() {
   const { id } = useParams();
   const { usuario } = useAuth();
+  const conteudoRef = useRef(null);
   const [viagem, setViagem] = useState(null);
   const [roteiro, setRoteiro] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [gerando, setGerando] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
   const [erro, setErro] = useState("");
   const [datas, setDatas] = useState({ dataInicio: "", dataFim: "" });
   const [confirmarRegerar, setConfirmarRegerar] = useState(false);
@@ -115,18 +118,44 @@ export default function RoteiroViagem() {
     }
   }
 
-  function baixarPdf() {
-    const tituloAnterior = document.title;
+  async function baixarPdf() {
+    if (!conteudoRef.current) return;
+
+    setGerandoPdf(true);
+    setErro("");
+
     const destino = roteiro?.destino ?? viagem?.nome ?? "viagem";
-    document.title = `Roteiro - ${destino}`;
+    const nomeArquivo =
+      `roteiro-${destino}`
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "-")
+        .toLowerCase() + ".pdf";
 
-    function restaurarTitulo() {
-      document.title = tituloAnterior;
-      window.removeEventListener("afterprint", restaurarTitulo);
+    try {
+      await html2pdf()
+        .set({
+          margin: [12, 10],
+          filename: nomeArquivo,
+          image: { type: "jpeg", quality: 0.95 },
+          html2canvas: {
+            scale: 2,
+            backgroundColor: "#FFFFFF",
+            onclone: (doc) => {
+              doc.documentElement.removeAttribute("data-theme");
+              doc.querySelectorAll("[data-pdf-ignore]").forEach((el) => el.remove());
+            },
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["css", "legacy"], avoid: [".rounded-2xl", ".rounded-3xl"] },
+        })
+        .from(conteudoRef.current)
+        .save();
+    } catch {
+      setErro("Não foi possível gerar o PDF. Tente novamente.");
+    } finally {
+      setGerandoPdf(false);
     }
-
-    window.addEventListener("afterprint", restaurarTitulo);
-    window.print();
   }
 
   if (carregando) {
@@ -144,8 +173,8 @@ export default function RoteiroViagem() {
 
   return (
     <main className="min-h-screen bg-bg px-6 py-12">
-      <div className="mx-auto max-w-5xl">
-        <Link to={`/viagens/${id}`} className="print:hidden text-sm font-bold text-accent">
+      <div ref={conteudoRef} className="mx-auto max-w-5xl">
+        <Link to={`/viagens/${id}`} data-pdf-ignore className="text-sm font-bold text-accent">
           ← Voltar para a viagem
         </Link>
 
@@ -164,12 +193,13 @@ export default function RoteiroViagem() {
           </div>
 
           {roteiro && (
-            <div className="print:hidden flex flex-wrap gap-3">
+            <div data-pdf-ignore className="flex flex-wrap gap-3">
               <button
                 onClick={baixarPdf}
-                className="rounded-full bg-turq px-5 py-2.5 font-bold text-on-accent"
+                disabled={gerandoPdf}
+                className="rounded-full bg-turq px-5 py-2.5 font-bold text-on-accent disabled:opacity-60"
               >
-                Baixar em PDF
+                {gerandoPdf ? "Gerando PDF..." : "Baixar em PDF"}
               </button>
               {souAdmin && (
                 <button
@@ -185,7 +215,7 @@ export default function RoteiroViagem() {
         </motion.header>
 
         {erro && (
-          <p role="alert" className="print:hidden mt-6 font-medium text-accent">
+          <p role="alert" className="mt-6 font-medium text-accent">
             {erro}
           </p>
         )}
