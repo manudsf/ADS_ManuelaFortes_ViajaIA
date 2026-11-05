@@ -15,6 +15,7 @@
 }
 
 [data-theme="dark"] {
+    color-scheme: dark;
   --bg: #0a1a2a;
   --ink: #f4ecdd;
   --muted: #9db2c0;

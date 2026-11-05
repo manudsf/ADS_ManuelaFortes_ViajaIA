@@ -6,6 +6,14 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(lerUsuarioSalvo);
 
+  function atualizarUsuarioLocal(dados) {
+    setUsuario((atual) => {
+      const novo = { ...atual, ...dados };
+      localStorage.setItem("viajaia_usuario", JSON.stringify(novo));
+      return novo;
+    });
+  }
+
   async function entrar(email, senha) {
     const { token, usuario: dados } = await api.login({ email, senha });
     salvarSessao(token, dados);
@@ -18,7 +26,9 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ usuario, autenticado: Boolean(usuario), entrar, sair }}>
+    <AuthContext.Provider
+      value={{ usuario, autenticado: Boolean(usuario), entrar, sair, atualizarUsuarioLocal }}
+    >
       {children}
     </AuthContext.Provider>
   );

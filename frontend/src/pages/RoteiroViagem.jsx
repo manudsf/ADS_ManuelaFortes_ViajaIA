@@ -25,6 +25,32 @@ const moeda = (valor) =>
 
 const preco = (valor) => (valor === 0 ? "Grátis" : moeda(valor));
 
+// Converte qualquer cor moderna (oklch, lab, color-mix...) para rgb(), que o html2canvas entende.
+function converterParaRgb(cor) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+  ctx.clearRect(0, 0, 1, 1);
+  ctx.fillStyle = "rgba(0, 0, 0, 0)";
+  ctx.fillStyle = cor;
+  ctx.fillRect(0, 0, 1, 1);
+
+  const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+  return a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(2)})`;
+}
+
+const PROPRIEDADES_COR = [
+  "color",
+  "backgroundColor",
+  "borderTopColor",
+  "borderRightColor",
+  "borderBottomColor",
+  "borderLeftColor",
+  "outlineColor",
+];
+
 function Card({ rotulo, valor, detalhe }) {
   return (
     <div className="rounded-2xl border border-line bg-card p-5">
@@ -144,6 +170,20 @@ export default function RoteiroViagem() {
             onclone: (doc) => {
               doc.documentElement.removeAttribute("data-theme");
               doc.querySelectorAll("[data-pdf-ignore]").forEach((el) => el.remove());
+
+              doc.querySelectorAll("*").forEach((el) => {
+                const estilo = doc.defaultView.getComputedStyle(el);
+
+                PROPRIEDADES_COR.forEach((prop) => {
+                  const valor = estilo[prop];
+                  if (valor && /oklch|oklab|lab\(|lch\(|color\(|color-mix/.test(valor)) {
+                    el.style[prop] = converterParaRgb(valor);
+                  }
+                });
+
+                el.style.boxShadow = "none";
+                el.style.textShadow = "none";
+              });
             },
           },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
@@ -151,7 +191,8 @@ export default function RoteiroViagem() {
         })
         .from(conteudoRef.current)
         .save();
-    } catch {
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
       setErro("Não foi possível gerar o PDF. Tente novamente.");
     } finally {
       setGerandoPdf(false);

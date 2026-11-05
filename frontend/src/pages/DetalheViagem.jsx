@@ -14,13 +14,79 @@ const ROTULO_STATUS = {
   CONCLUIDA: "Concluída",
 };
 
-function formatarData(data) {
-  if (!data) return "Datas a definir";
-  return formatarDataBR(data);
+const ICONES = {
+  chat: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+  mapa: "M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z",
+  roteiro: "M9 20l-6-3V4l6 3 6-3 6 3v13l-6-3-6 3z",
+  carteira: "M20 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM16 14h.01M2 9V6a2 2 0 0 1 2-2h13",
+  seta: "M5 12h14M13 6l6 6-6 6",
+  remover: "M6 6l12 12M18 6L6 18",
+  link: "M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
+  copiar: "M9 9h10v10H9zM5 15V5h10",
+  desativar: "M18.36 5.64A9 9 0 1 1 5.64 18.36M12 3v9M4.93 4.93l14.14 14.14",
+};
+
+function Icone({ caminho, className = "h-5 w-5" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d={caminho} />
+    </svg>
+  );
 }
 
-function confirmadoOuAdmin(participante) {
-  return participante?.statusConvite === "ACEITO" || participante?.papel === "ADMIN";
+const iniciais = (nome) =>
+  nome
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+
+function textoSituacao(p) {
+  if (p.statusConvite === "PENDENTE") return "Convite pendente";
+  if (p.statusConvite === "RECUSADO") return "Recusou o convite";
+  return p.conversaConcluidaEm ? "Conversa concluída" : "Falta conversar com o agente";
+}
+
+function proximoPasso(viagem, euNaViagem, souAdmin) {
+  if (!euNaViagem || (euNaViagem.statusConvite !== "ACEITO" && !souAdmin)) return null;
+
+  if (!euNaViagem.conversaConcluidaEm) {
+    return {
+      para: `/viagens/${viagem.id}/chat`,
+      titulo: "Conte suas preferências",
+      texto: "Um papo rápido com o agente. A IA organiza o resto.",
+      rotulo: "Começar conversa",
+      tom: "bg-turq",
+    };
+  }
+
+  if (!viagem.destinoFinalId) {
+    return {
+      para: `/viagens/${viagem.id}/destinos`,
+      titulo: "Hora de escolher o destino",
+      texto: "A IA sugere lugares para o grupo. Um voto por pessoa.",
+      rotulo: "Ir para a votação",
+      tom: "bg-accent",
+    };
+  }
+
+  return {
+    para: `/viagens/${viagem.id}/roteiro`,
+    titulo: "Destino escolhido",
+    texto: "Monte o roteiro dia a dia, com hospedagem, restaurantes e valores.",
+    rotulo: "Ver roteiro",
+    tom: "bg-gold",
+  };
 }
 
 export default function DetalheViagem() {
@@ -33,6 +99,7 @@ export default function DetalheViagem() {
   const [mensagem, setMensagem] = useState("");
   const [emailConvite, setEmailConvite] = useState("");
   const [enviandoConvite, setEnviandoConvite] = useState(false);
+  const [abaConvite, setAbaConvite] = useState("email");
   const [confirmacao, setConfirmacao] = useState(null);
   const [linkConvite, setLinkConvite] = useState(null);
   const [copiado, setCopiado] = useState(false);
@@ -70,6 +137,7 @@ export default function DetalheViagem() {
   const euNaViagem = viagem?.participantes.find((p) => p.usuarioId === usuario?.id);
   const souAdmin = euNaViagem?.papel === "ADMIN";
   const convitePendente = euNaViagem?.statusConvite === "PENDENTE";
+  const passo = viagem ? proximoPasso(viagem, euNaViagem, souAdmin) : null;
 
   async function responderConvite(acao) {
     setErro("");
@@ -174,26 +242,40 @@ export default function DetalheViagem() {
     );
   }
 
+  const acoesRapidas = [
+    { para: `/viagens/${id}/chat`, rotulo: "Agente", icone: ICONES.chat, tom: "bg-turq" },
+    { para: `/viagens/${id}/destinos`, rotulo: "Votação", icone: ICONES.mapa, tom: "bg-accent" },
+    { para: `/viagens/${id}/roteiro`, rotulo: "Roteiro", icone: ICONES.roteiro, tom: "bg-gold" },
+    { para: `/viagens/${id}/despesas`, rotulo: "Despesas", icone: ICONES.carteira, tom: "bg-accent" },
+  ];
+
+  const podeVerAcoes = confirmadoOuAdminSeguro(euNaViagem);
+
   return (
-    <main className="min-h-screen bg-bg px-6 py-12">
-      <div className="mx-auto max-w-4xl">
-        <Link to="/viagens" className="text-sm font-bold text-accent">
-          ← Voltar para minhas viagens
+    <main className="min-h-screen bg-bg px-6 py-10">
+      <div className="mx-auto max-w-3xl">
+        <Link to="/viagens" className="text-sm font-bold text-muted transition hover:text-accent">
+          ← Minhas viagens
         </Link>
 
         <motion.header
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="mt-6 border-b border-line pb-8"
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="mt-6"
         >
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-turq">
-            {ROTULO_STATUS[viagem.status] ?? viagem.status}
-          </p>
-          <h1 className="mt-2 font-display text-6xl leading-none text-ink">{viagem.nome}</h1>
-          <p className="mt-4 text-base text-muted">
-            {viagem.destinoFinal?.nomeDestino ?? "Destino a definir"} · {formatarData(viagem.dataInicio)}
-            {viagem.dataFim && ` até ${formatarData(viagem.dataFim)}`}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-turq/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-turq">
+              {ROTULO_STATUS[viagem.status] ?? viagem.status}
+            </span>
+            {souAdmin && (
+              <span className="rounded-full bg-gold/20 px-3 py-1 text-xs font-bold text-gold">Você é o admin</span>
+            )}
+          </div>
+          <h1 className="mt-4 font-display text-5xl leading-tight text-ink">{viagem.nome}</h1>
+          <p className="mt-2 text-muted">
+            {viagem.destinoFinal?.nomeDestino ?? "Destino a definir"} · {formatarDataBR(viagem.dataInicio) || "Datas a definir"}
+            {viagem.dataFim && ` até ${formatarDataBR(viagem.dataFim)}`}
           </p>
         </motion.header>
 
@@ -201,58 +283,117 @@ export default function DetalheViagem() {
         {mensagem && <p className="mt-6 font-medium text-turq">{mensagem}</p>}
 
         {convitePendente && (
-          <section className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-accent/40 bg-card p-7">
+          <section className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-accent/40 bg-card p-6">
             <div>
-              <p className="font-display text-3xl text-ink">Você foi convidado para esta viagem</p>
-              <p className="mt-1 text-muted">Aceite para participar do planejamento.</p>
+              <p className="font-display text-2xl text-ink">Você foi convidado</p>
+              <p className="text-sm text-muted">Aceite para entrar no planejamento.</p>
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => responderConvite("aceitar")} className="rounded-full bg-accent px-6 py-3 font-bold text-on-accent">
+            <div className="flex gap-2">
+              <button onClick={() => responderConvite("aceitar")} className="rounded-full bg-accent px-5 py-2.5 font-bold text-on-accent">
                 Bora!
               </button>
-              <button onClick={() => responderConvite("recusar")} className="rounded-full border border-line px-6 py-3 font-medium text-ink">
+              <button onClick={() => responderConvite("recusar")} className="rounded-full border border-line px-5 py-2.5 font-medium text-ink">
                 Agora não
               </button>
             </div>
           </section>
         )}
 
+        {passo && (
+          <Link
+            to={passo.para}
+            className={`mt-8 flex items-center justify-between gap-6 rounded-3xl p-7 text-on-accent transition hover:-translate-y-0.5 hover:shadow-xl ${passo.tom}`}
+          >
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] opacity-80">Próximo passo</p>
+              <p className="mt-1 font-display text-3xl leading-tight">{passo.titulo}</p>
+              <p className="mt-1 text-sm opacity-90">{passo.texto}</p>
+            </div>
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-on-accent/15">
+              <Icone caminho={ICONES.seta} />
+            </span>
+          </Link>
+        )}
+
+        {podeVerAcoes && (
+          <nav className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+            {acoesRapidas.map((acao) => (
+              <Link
+                key={acao.rotulo}
+                to={acao.para}
+                className="flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-4 transition hover:border-turq"
+              >
+                <span className={`grid h-9 w-9 place-items-center rounded-xl text-on-accent ${acao.tom}`}>
+                  <Icone caminho={acao.icone} className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-bold text-ink">{acao.rotulo}</span>
+              </Link>
+            ))}
+          </nav>
+        )}
+
         <section className="mt-10">
-          <h2 className="font-display text-3xl text-ink">Participantes</h2>
-          <ul className="mt-5 grid gap-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-display text-2xl text-ink">Turma</h2>
+            <span className="text-sm text-muted">{viagem.participantes.length} pessoa(s)</span>
+          </div>
+
+          <ul className="mt-4 divide-y divide-line overflow-hidden rounded-3xl border border-line bg-card">
             {viagem.participantes.map((p) => (
-              <li key={p.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-card px-5 py-4">
-                <div>
-                  <p className="font-medium text-ink">
+              <li key={p.id} className="flex items-center gap-4 px-5 py-4">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-turq/20 text-sm font-bold text-ink">
+                  {iniciais(p.usuario.nome)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-ink">
                     {p.usuario.nome}
-                    {p.papel === "ADMIN" && (
-                      <span className="ml-3 rounded-full bg-gold px-3 py-0.5 text-xs font-bold text-on-accent">Admin</span>
-                    )}
+                    {p.usuarioId === usuario?.id && <span className="text-muted"> (você)</span>}
                   </p>
-                  <p className="text-sm text-muted">{p.usuario.email}</p>
+                  <p className="truncate text-sm text-muted">
+                    {p.papel === "ADMIN" ? "Admin" : "Membro"} · {textoSituacao(p)}
+                  </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-ink">
-                    {p.statusConvite === "ACEITO" ? "Confirmado" : p.statusConvite === "PENDENTE" ? "Pendente" : "Recusou"}
-                  </span>
-                  {souAdmin && p.papel !== "ADMIN" && (
-                    <button
-                      onClick={() => setConfirmacao({ tipo: "remover", participanteId: p.id, nome: p.usuario.nome })}
-                      className="text-sm font-bold text-accent"
-                    >
-                      Remover
-                    </button>
-                  )}
-                </div>
+                {souAdmin && p.papel !== "ADMIN" && (
+                  <button
+                    onClick={() => setConfirmacao({ tipo: "remover", participanteId: p.id, nome: p.usuario.nome })}
+                    aria-label={`Remover ${p.usuario.nome}`}
+                    title="Remover"
+                    className="grid h-9 w-9 place-items-center rounded-full text-muted transition hover:bg-accent/15 hover:text-accent"
+                  >
+                    <Icone caminho={ICONES.remover} className="h-4 w-4" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         </section>
 
         {souAdmin && (
-          <>
-            <section className="mt-10 rounded-3xl border border-line bg-card p-7">
-              <h2 className="font-display text-3xl text-ink">Chamar mais alguém</h2>
+          <section className="mt-10 rounded-3xl border border-line bg-card p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="font-display text-2xl text-ink">Chamar a turma</h2>
+                <p className="text-sm text-muted">Por e-mail de quem já tem conta, ou por um link de 7 dias.</p>
+              </div>
+              <div className="flex rounded-full border border-line p-1 text-sm font-bold">
+                {[
+                  { chave: "email", rotulo: "E-mail" },
+                  { chave: "link", rotulo: "Link" },
+                ].map((aba) => (
+                  <button
+                    key={aba.chave}
+                    onClick={() => setAbaConvite(aba.chave)}
+                    className={`rounded-full px-4 py-2 transition ${
+                      abaConvite === aba.chave ? "bg-accent text-on-accent" : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {aba.rotulo}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {abaConvite === "email" ? (
               <form onSubmit={convidar} className="mt-5 flex flex-wrap gap-3">
                 <input
                   type="email"
@@ -267,80 +408,52 @@ export default function DetalheViagem() {
                   disabled={enviandoConvite}
                   className="rounded-full bg-accent px-6 py-3 font-bold text-on-accent disabled:opacity-60"
                 >
-                  {enviandoConvite ? "Enviando..." : "Enviar convite"}
+                  {enviandoConvite ? "Enviando..." : "Enviar"}
                 </button>
               </form>
-            </section>
-
-            <section className="mt-6 rounded-3xl border border-line bg-card p-7">
-              <h2 className="font-display text-3xl text-ink">Convidar por link</h2>
-              <p className="mt-2 text-muted">
-                Mande o link no WhatsApp. Quem abrir entra no grupo, e o link vale por 7 dias.
-              </p>
-
-              {!linkConvite ? (
+            ) : !linkConvite ? (
+              <button
+                onClick={gerarLink}
+                className="mt-5 flex items-center gap-2 rounded-full border border-turq px-5 py-3 font-bold text-turq"
+              >
+                <Icone caminho={ICONES.link} className="h-4 w-4" />
+                Gerar link de convite
+              </button>
+            ) : (
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <input
+                  readOnly
+                  value={linkConvite.url}
+                  className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-4 py-3 text-sm text-ink"
+                />
                 <button
-                  onClick={gerarLink}
-                  className="mt-5 rounded-full border border-turq px-6 py-3 font-bold text-turq"
+                  onClick={copiarLink}
+                  className="flex items-center gap-2 rounded-full bg-turq px-5 py-3 font-bold text-on-accent"
                 >
-                  Gerar link
+                  <Icone caminho={ICONES.copiar} className="h-4 w-4" />
+                  {copiado ? "Copiado!" : "Copiar"}
                 </button>
-              ) : (
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <input
-                    readOnly
-                    value={linkConvite.url}
-                    className="min-w-0 flex-1 rounded-xl border border-line bg-bg px-4 py-3 text-ink"
-                  />
-                  <button onClick={copiarLink} className="rounded-full bg-turq px-6 py-3 font-bold text-on-accent">
-                    {copiado ? "Copiado!" : "Copiar"}
-                  </button>
-                  <button onClick={desativarLink} className="rounded-full border border-line px-5 py-3 font-medium text-ink">
-                    Desativar
-                  </button>
-                </div>
-              )}
-            </section>
-          </>
-        )}
-
-        {confirmadoOuAdmin(euNaViagem) && (
-          <section className="mt-10">
-            <h2 className="font-display text-3xl text-ink">Próximos passos</h2>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              <Link
-                to={`/viagens/${id}/chat`}
-                className="rounded-3xl border border-line bg-card p-6 transition hover:-translate-y-1 hover:shadow-xl"
-              >
-                <p className="font-medium text-ink">Conversar com o agente</p>
-                <p className="mt-2 text-sm text-muted">Conte suas preferências para a IA.</p>
-              </Link>
-
-              <Link
-                to={`/viagens/${id}/destinos`}
-                className="rounded-3xl border border-line bg-card p-6 transition hover:-translate-y-1 hover:shadow-xl"
-              >
-                <p className="font-medium text-ink">Votar no destino</p>
-                <p className="mt-2 text-sm text-muted">Escolha o lugar que o grupo vai curtir.</p>
-              </Link>
-
-              <Link
-                to={`/viagens/${id}/roteiro`}
-                className="rounded-3xl border border-line bg-card p-6 transition hover:-translate-y-1 hover:shadow-xl"
-              >
-                <p className="font-medium text-ink">Ver o roteiro</p>
-                <p className="mt-2 text-sm text-muted">O passo a passo dia a dia da viagem.</p>
-              </Link>
-            </div>
+                <button
+                  onClick={desativarLink}
+                  className="flex items-center gap-2 rounded-full border border-line px-4 py-3 font-medium text-ink"
+                >
+                  <Icone caminho={ICONES.desativar} className="h-4 w-4" />
+                  Desativar
+                </button>
+              </div>
+            )}
           </section>
         )}
 
         {souAdmin && (
-          <section className="mt-14 border-t border-line pt-8">
-            <button onClick={() => setConfirmacao({ tipo: "excluir" })} className="text-sm font-bold text-accent">
+          <footer className="mt-16 border-t border-line pt-6 text-center">
+            <button
+              onClick={() => setConfirmacao({ tipo: "excluir" })}
+              className="text-sm font-medium text-muted transition hover:text-accent"
+            >
               Excluir esta viagem
             </button>
-          </section>
+          </footer>
         )}
       </div>
 
@@ -356,4 +469,8 @@ export default function DetalheViagem() {
       />
     </main>
   );
+}
+
+function confirmadoOuAdminSeguro(participante) {
+  return participante?.statusConvite === "ACEITO" || participante?.papel === "ADMIN";
 }

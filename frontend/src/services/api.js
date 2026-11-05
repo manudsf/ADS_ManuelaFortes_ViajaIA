@@ -87,4 +87,19 @@ export const api = {
 revogarLinkConvite: (viagemId) => requisicao(`/convites/viagem/${viagemId}`, { metodo: "DELETE" }),
 buscarConvite: (token) => requisicao(`/convites/${token}`),
 aceitarConvite: (token) => requisicao(`/convites/${token}/aceitar`, { metodo: "POST" }),
+
+  buscarPerfil: () => requisicao("/perfil"),
+  atualizarPerfil: (dados) => requisicao("/perfil", { metodo: "PATCH", corpo: dados }),
+  trocarSenha: (dados) => requisicao("/perfil/senha", { metodo: "PATCH", corpo: dados }),
+
+    listarDespesas: (viagemId) => requisicao(`/viagens/${viagemId}/despesas`),
+  criarDespesa: (viagemId, dados) =>
+    requisicao(`/viagens/${viagemId}/despesas`, { metodo: "POST", corpo: dados }),
+  editarDespesa: (viagemId, despesaId, dados) =>
+    requisicao(`/viagens/${viagemId}/despesas/${despesaId}`, { metodo: "PATCH", corpo: dados }),
+  excluirDespesa: (viagemId, despesaId) =>
+    requisicao(`/viagens/${viagemId}/despesas/${despesaId}`, { metodo: "DELETE" }),
+  calcularSaldos: (viagemId) => requisicao(`/viagens/${viagemId}/despesas/saldos`),
+  historicoDespesa: (viagemId, despesaId) =>
+    requisicao(`/viagens/${viagemId}/despesas/${despesaId}/historico`),
 };

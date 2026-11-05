@@ -51,6 +51,7 @@ model Usuario {
   senhaHash  String   @map("senha_hash")
   telefone   String?
   criadoEm   DateTime @default(now()) @map("criado_em")
+    apelido String?
 
   viagensCriadas       Viagem[]              @relation("ViagemCriadaPor")
   participacoes        ParticipanteViagem[]
@@ -196,6 +197,7 @@ model Despesa {
   pagoPor Usuario @relation("DespesaPagaPor", fields: [pagoPorId], references: [id])
 
   participacoes ParticipacaoDespesa[]
+  historico HistoricoDespesa[]
 
   @@map("despesa")
 }
@@ -225,4 +227,18 @@ model ConviteLink {
   criadoPor Usuario @relation("ConvitesCriados", fields: [criadoPorId], references: [id])
 
   @@map("convite_link")
+}
+
+model HistoricoDespesa {
+  id         String   @id @default(uuid())
+  despesaId  String?  @map("despesa_id")
+  acao       String
+  descricao  String
+  feitoPorId String   @map("feito_por")
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  despesa Despesa? @relation(fields: [despesaId], references: [id], onDelete: SetNull)
+
+  @@map("historico_despesa")
+
 }
