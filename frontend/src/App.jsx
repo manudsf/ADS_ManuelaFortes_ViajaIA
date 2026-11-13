@@ -13,6 +13,7 @@ import ConvitePublico from "./pages/ConvitePublico.jsx";
 import Perfil from "./pages/Perfil.jsx";
 import LayoutPrivado from "./components/LayoutPrivado.jsx";
 import BotaoTema from "./components/BotaoTema.jsx";
+import Landing from "./pages/Landing.jsx";
 
 function RotaPrivada({ children }) {
   const { autenticado } = useAuth();
@@ -25,7 +26,7 @@ export default function App() {
       <BrowserRouter>
         <BotaoTema />
         <Routes>
-          <Route path="/" element={<Navigate to="/entrar" replace />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/entrar" element={<Entrar />} />
           <Route path="/cadastro" element={<Cadastro />} />
           <Route path="/convite/:token" element={<ConvitePublico />} />
