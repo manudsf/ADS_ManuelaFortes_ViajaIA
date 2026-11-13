@@ -41,7 +41,7 @@ const entrada = (i) => ({
 });
 
 export default function Viagens() {
-  const { usuario, sair } = useAuth();
+  const { usuario } = useAuth();
   const navigate = useNavigate();
   const [viagens, setViagens] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -111,12 +111,7 @@ export default function Viagens() {
             >
               Nova viagem
             </button>
-            <button
-              onClick={sair}
-              className="rounded-full border border-line px-5 py-3 font-medium text-ink transition hover:bg-line/40"
-            >
-              Sair
-            </button>
+            
           </div>
         </motion.header>
 

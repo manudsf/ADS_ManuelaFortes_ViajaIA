@@ -57,6 +57,24 @@ function textoSituacao(p) {
   return p.conversaConcluidaEm ? "Conversa concluída" : "Falta conversar com o agente";
 }
 
+const TONS_PASSO = {
+  turq: {
+    superficie: "border-turq/50 bg-turq/10",
+    destaque: "text-turq",
+    seta: "bg-turq",
+  },
+  accent: {
+    superficie: "border-accent/50 bg-accent/10",
+    destaque: "text-accent",
+    seta: "bg-accent",
+  },
+  gold: {
+    superficie: "border-gold/50 bg-gold/10",
+    destaque: "text-gold",
+    seta: "bg-gold",
+  },
+};
+
 function proximoPasso(viagem, euNaViagem, souAdmin) {
   if (!euNaViagem || (euNaViagem.statusConvite !== "ACEITO" && !souAdmin)) return null;
 
@@ -65,8 +83,7 @@ function proximoPasso(viagem, euNaViagem, souAdmin) {
       para: `/viagens/${viagem.id}/chat`,
       titulo: "Conte suas preferências",
       texto: "Um papo rápido com o agente. A IA organiza o resto.",
-      rotulo: "Começar conversa",
-      tom: "bg-turq",
+      tom: "turq",
     };
   }
 
@@ -75,8 +92,7 @@ function proximoPasso(viagem, euNaViagem, souAdmin) {
       para: `/viagens/${viagem.id}/destinos`,
       titulo: "Hora de escolher o destino",
       texto: "A IA sugere lugares para o grupo. Um voto por pessoa.",
-      rotulo: "Ir para a votação",
-      tom: "bg-accent",
+      tom: "accent",
     };
   }
 
@@ -84,8 +100,7 @@ function proximoPasso(viagem, euNaViagem, souAdmin) {
     para: `/viagens/${viagem.id}/roteiro`,
     titulo: "Destino escolhido",
     texto: "Monte o roteiro dia a dia, com hospedagem, restaurantes e valores.",
-    rotulo: "Ver roteiro",
-    tom: "bg-gold",
+    tom: "gold",
   };
 }
 
@@ -302,14 +317,18 @@ export default function DetalheViagem() {
         {passo && (
           <Link
             to={passo.para}
-            className={`mt-8 flex items-center justify-between gap-6 rounded-3xl p-7 text-on-accent transition hover:-translate-y-0.5 hover:shadow-xl ${passo.tom}`}
+            className={`mt-8 flex items-center justify-between gap-6 rounded-3xl border p-7 text-ink transition hover:-translate-y-0.5 hover:shadow-xl ${TONS_PASSO[passo.tom].superficie}`}
           >
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] opacity-80">Próximo passo</p>
+              <p className={`text-xs font-bold uppercase tracking-[0.16em] ${TONS_PASSO[passo.tom].destaque}`}>
+                Próximo passo
+              </p>
               <p className="mt-1 font-display text-3xl leading-tight">{passo.titulo}</p>
-              <p className="mt-1 text-sm opacity-90">{passo.texto}</p>
+              <p className="mt-1 text-sm text-muted">{passo.texto}</p>
             </div>
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-on-accent/15">
+            <span
+              className={`grid h-12 w-12 shrink-0 place-items-center rounded-full text-on-accent ${TONS_PASSO[passo.tom].seta}`}
+            >
               <Icone caminho={ICONES.seta} />
             </span>
           </Link>

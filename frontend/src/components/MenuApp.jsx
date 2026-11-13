@@ -1,8 +1,8 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const ITENS = [
-  { para: "/perfil", rotulo: "Meu perfil", icone: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" },
+ { para: "/perfil", rotulo: "Meu perfil", icone: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" },
 
   { para: "/viagens", rotulo: "Minhas viagens", icone: "M3 12l9-9 9 9M5 10v10h14V10" },
 
@@ -32,11 +32,10 @@ function Icone({ caminho, className = "h-5 w-5" }) {
 
 export default function MenuApp({ aberto, onAlternar }) {
   const { sair } = useAuth();
-  const navigate = useNavigate();
 
-  function handleSair() {
+      function handleSair() {
     sair();
-    navigate("/entrar");
+    window.location.replace("/");
   }
 
   return (
