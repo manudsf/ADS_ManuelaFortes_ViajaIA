@@ -20,10 +20,21 @@ const ROTULO_TIPO = {
   RESTAURANTE: "Restaurante",
 };
 
+const LIMITE_PARADAS_MAPS = 10;
+
 const moeda = (valor) =>
   typeof valor === "number" ? valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : null;
 
 const preco = (valor) => (valor === 0 ? "Grátis" : moeda(valor));
+
+// Monta a URL de rota do Google Maps com as paradas do dia, na ordem do roteiro.
+function linkMapsDoDia(dia, destino) {
+  const paradas = dia.itens
+    .map((item) => `${item.titulo}${destino ? `, ${destino}` : ""}`)
+    .slice(0, LIMITE_PARADAS_MAPS);
+
+  return `https://www.google.com/maps/dir/${paradas.map((p) => encodeURIComponent(p)).join("/")}`;
+}
 
 // Converte qualquer cor moderna (oklch, lab, color-mix...) para rgb(), que o html2canvas entende.
 function converterParaRgb(cor) {
@@ -142,6 +153,11 @@ export default function RoteiroViagem() {
     } finally {
       setGerando(false);
     }
+  }
+
+  function abrirDiaNoMaps(dia) {
+    const destinoTexto = roteiro?.destino ?? viagem?.nome ?? "";
+    window.open(linkMapsDoDia(dia, destinoTexto), "_blank", "noopener");
   }
 
   async function baixarPdf() {
@@ -382,11 +398,22 @@ export default function RoteiroViagem() {
                         {dia.data && <p className="font-display text-3xl text-ink">{formatarDataBR(dia.data)}</p>}
                       </div>
                     </div>
-                    {dia.totalDia > 0 && (
-                      <p className="text-sm text-muted">
-                        Estimativa do dia: <span className="font-bold text-ink">{moeda(dia.totalDia)}</span>
-                      </p>
-                    )}
+
+                    <div data-pdf-ignore className="flex flex-wrap items-center gap-4">
+                      {dia.totalDia > 0 && (
+                        <p className="text-sm text-muted">
+                          Estimativa do dia: <span className="font-bold text-ink">{moeda(dia.totalDia)}</span>
+                        </p>
+                      )}
+                      {dia.itens.length > 0 && (
+                        <button
+                          onClick={() => abrirDiaNoMaps(dia)}
+                          className="rounded-full border border-turq px-4 py-2 text-sm font-bold text-turq transition hover:bg-turq hover:text-on-accent"
+                        >
+                          Abrir o dia no Google Maps
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {temPeriodo ? (
