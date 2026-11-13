@@ -14,6 +14,8 @@ import Perfil from "./pages/Perfil.jsx";
 import LayoutPrivado from "./components/LayoutPrivado.jsx";
 import BotaoTema from "./components/BotaoTema.jsx";
 import Landing from "./pages/Landing.jsx";
+import EsqueciSenha from "./pages/EsqueciSenha.jsx";
+import RedefinirSenha from "./pages/RedefinirSenha.jsx";
 
 function RotaPrivada({ children }) {
   const { autenticado } = useAuth();
@@ -28,6 +30,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/entrar" element={<Entrar />} />
+          <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+          <Route path="/redefinir-senha/:token" element={<RedefinirSenha />} />
           <Route path="/cadastro" element={<Cadastro />} />
           <Route path="/convite/:token" element={<ConvitePublico />} />
 

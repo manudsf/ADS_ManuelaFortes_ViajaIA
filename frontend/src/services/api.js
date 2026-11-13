@@ -102,4 +102,8 @@ aceitarConvite: (token) => requisicao(`/convites/${token}/aceitar`, { metodo: "P
   calcularSaldos: (viagemId) => requisicao(`/viagens/${viagemId}/despesas/saldos`),
   historicoDespesa: (viagemId, despesaId) =>
     requisicao(`/viagens/${viagemId}/despesas/${despesaId}/historico`),
+    esqueciSenha: (email) => requisicao("/auth/esqueci-senha", { metodo: "POST", corpo: { email } }),
+  redefinirSenha: (token, novaSenha) =>
+    requisicao("/auth/redefinir-senha", { metodo: "POST", corpo: { token, novaSenha } }),
 };
+

@@ -9,6 +9,7 @@ import roteiroRoutes from "./routes/roteiro.routes.js";
 import conviteRoutes from "./routes/convite.routes.js";
 import perfilRoutes from "./routes/perfil.routes.js";
 import despesaRoutes from "./routes/despesa.routes.js";
+import recuperacaoRoutes from "./routes/recuperacao.routes.js";
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/auth", authRoutes);
+app.use("/auth", recuperacaoRoutes);
 app.use("/viagens", viagemRoutes);
 app.use("/viagens/:viagemId/mensagens", mensagemRoutes);
 app.use("/viagens/:viagemId/preferencias", preferenciaRoutes);
@@ -24,6 +26,7 @@ app.use("/viagens/:viagemId/roteiro", roteiroRoutes);
 app.use("/viagens/:viagemId/despesas", despesaRoutes);
 app.use("/convites", conviteRoutes);
 app.use("/perfil", perfilRoutes);
+
 
 app.get("/", (req, res) => {
   res.json({ status: "ViajaIA API rodando" });

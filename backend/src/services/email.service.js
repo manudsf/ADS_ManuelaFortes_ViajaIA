@@ -100,3 +100,16 @@ export async function enviarLembreteConversa(viagemId) {
 
   return pendentes.length;
 }
+
+export async function enviarRecuperacaoSenha({ para, nome, link }) {
+  await enviar({
+    para,
+    assunto: "Recupere o acesso à sua conta ViajaIA",
+    html: template({
+      titulo: "Vamos recuperar seu acesso",
+      texto: `Oi, ${nome}! Clique no botão abaixo para criar uma nova senha. O link vale por 1 hora e funciona só uma vez.`,
+      link,
+      textoBotao: "Criar nova senha",
+    }),
+  });
+}

@@ -57,7 +57,9 @@ export default function Entrar() {
             className="mt-2 w-full rounded-xl border border-line bg-bg px-4 py-3 text-ink"
           />
         </label>
-
+        <Link to="/esqueci-senha" className="block text-right text-sm font-bold text-muted transition hover:text-accent">
+          Esqueci minha senha
+        </Link>
         {erro && (
           <p role="alert" className="text-sm text-accent">
             {erro}
