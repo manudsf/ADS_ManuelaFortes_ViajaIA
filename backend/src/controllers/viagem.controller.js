@@ -77,4 +77,28 @@ export async function excluir(req, res) {
     return res.status(500).json({ erro: "Erro interno ao excluir viagem." });
   }
   
+
+  
+}
+
+export async function definirTipo(req, res) {
+  try {
+    const { tipo, detalhe } = req.body ?? {};
+    const viagem = await viagemService.definirTipoViagem({
+      viagemId: req.params.viagemId,
+      usuarioId: req.usuarioId,
+      tipo,
+      detalhe,
+    });
+    return res.status(200).json(viagem);
+  } catch (error) {
+    if (error.message === "SEM_PERMISSAO") {
+      return res.status(403).json({ erro: "Apenas o administrador pode definir o tipo da viagem." });
+    }
+    if (error.message === "TIPO_INVALIDO") {
+      return res.status(400).json({ erro: "Escolha um dos tipos de viagem disponíveis." });
+    }
+    console.error(error);
+    return res.status(500).json({ erro: "Erro interno ao salvar o tipo da viagem." });
+  }
 }

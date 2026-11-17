@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api } from "../services/api.js";
+import CampoData from "../components/CampoData.jsx";
+import { paraIso } from "../utils/data.js";
 
 export default function NovaViagem() {
   const navigate = useNavigate();
@@ -17,7 +19,19 @@ export default function NovaViagem() {
     e.preventDefault();
     setErro("");
 
-    if (form.dataInicio && form.dataFim && form.dataFim < form.dataInicio) {
+    // Datas são opcionais: só valida se a pessoa preencheu algo.
+    const dataInicio = form.dataInicio ? paraIso(form.dataInicio) : null;
+    const dataFim = form.dataFim ? paraIso(form.dataFim) : null;
+
+    if (form.dataInicio && !dataInicio) {
+      setErro("A data de ida está inválida. Use o formato dd/mm/aaaa, por exemplo 20/12/2026.");
+      return;
+    }
+    if (form.dataFim && !dataFim) {
+      setErro("A data de volta está inválida. Use o formato dd/mm/aaaa, por exemplo 23/12/2026.");
+      return;
+    }
+    if (dataInicio && dataFim && dataFim < dataInicio) {
       setErro("A data de volta não pode ser antes da data de ida.");
       return;
     }
@@ -27,8 +41,8 @@ export default function NovaViagem() {
       const viagem = await api.criarViagem({
         nome: form.nome,
         destino: form.destino || undefined,
-        dataInicio: form.dataInicio || undefined,
-        dataFim: form.dataFim || undefined,
+        dataInicio: dataInicio ?? undefined,
+        dataFim: dataFim ?? undefined,
       });
       navigate(`/viagens/${viagem.id}`);
     } catch (err) {
@@ -56,10 +70,7 @@ export default function NovaViagem() {
             Dê um nome para a viagem. Se já souber o destino, conte também: a IA começa a conversa sabendo para onde vão.
           </p>
 
-          <form
-            onSubmit={handleSubmit}
-            className="mt-10 space-y-6 rounded-3xl border border-line bg-card p-8"
-          >
+          <form onSubmit={handleSubmit} className="mt-10 space-y-6 rounded-3xl border border-line bg-card p-8">
             <label className="block text-sm font-medium text-ink">
               Nome da viagem
               <input
@@ -82,24 +93,16 @@ export default function NovaViagem() {
             </label>
 
             <div className="grid gap-5 md:grid-cols-2">
-              <label className="block text-sm font-medium text-ink">
-                Ida <span className="font-normal text-muted">(opcional)</span>
-                <input
-                  type="date"
-                  value={form.dataInicio}
-                  onChange={(e) => atualizar("dataInicio", e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-line bg-bg px-4 py-3 text-ink"
-                />
-              </label>
-              <label className="block text-sm font-medium text-ink">
-                Volta <span className="font-normal text-muted">(opcional)</span>
-                <input
-                  type="date"
-                  value={form.dataFim}
-                  onChange={(e) => atualizar("dataFim", e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-line bg-bg px-4 py-3 text-ink"
-                />
-              </label>
+              <CampoData
+                label={<>Ida <span className="font-normal text-muted">(opcional)</span></>}
+                value={form.dataInicio}
+                onChange={(v) => atualizar("dataInicio", v)}
+              />
+              <CampoData
+                label={<>Volta <span className="font-normal text-muted">(opcional)</span></>}
+                value={form.dataFim}
+                onChange={(v) => atualizar("dataFim", v)}
+              />
             </div>
 
             {erro && (

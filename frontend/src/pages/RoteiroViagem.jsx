@@ -3,8 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { api } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import ConfirmacaoModal from "../components/ConfirmacaoModal.jsx";
-import { formatarDataBR } from "../utils/data.js";
+import CampoData from "../components/CampoData.jsx";
+import { formatarDataBR, paraIso } from "../utils/data.js";
 import html2pdf from "html2pdf.js";
 
 const PERIODOS = [
@@ -64,7 +64,7 @@ const PROPRIEDADES_COR = [
 
 function Card({ rotulo, valor, detalhe }) {
   return (
-    <div className="rounded-2xl border border-line bg-card p-5">
+    <div className="pdf-card rounded-2xl border border-line bg-card p-5">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted">{rotulo}</p>
       <p className="mt-2 font-display text-2xl leading-tight text-ink">{valor}</p>
       {detalhe && <p className="mt-1 text-sm text-muted">{detalhe}</p>}
@@ -74,7 +74,7 @@ function Card({ rotulo, valor, detalhe }) {
 
 function ItemCard({ item }) {
   return (
-    <div className="rounded-2xl border border-line bg-card p-5">
+    <div className="pdf-card rounded-2xl border border-line bg-card p-5">
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs font-bold uppercase tracking-[0.16em] text-muted">{ROTULO_TIPO[item.tipo]}</span>
         {preco(item.valor) && <span className="text-sm font-bold text-turq">{preco(item.valor)}</span>}
@@ -96,7 +96,8 @@ export default function RoteiroViagem() {
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [erro, setErro] = useState("");
   const [datas, setDatas] = useState({ dataInicio: "", dataFim: "" });
-  const [confirmarRegerar, setConfirmarRegerar] = useState(false);
+  const [ajustes, setAjustes] = useState("");
+  const [mostrarAjustes, setMostrarAjustes] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -129,25 +130,39 @@ export default function RoteiroViagem() {
   const precisaDatas = !viagem?.dataInicio || !viagem?.dataFim;
   const temDestino = Boolean(viagem?.destinoFinalId);
 
-  async function gerar() {
+  async function gerar({ comAjustes = false } = {}) {
     setErro("");
 
-    if (precisaDatas) {
-      if (!datas.dataInicio || !datas.dataFim) {
-        setErro("Escolha as datas de ida e volta antes de montar o roteiro.");
+    const corpo = {};
+
+    // Datas são opcionais. Se a pessoa preencher uma, precisa preencher as duas.
+    if (precisaDatas && (datas.dataInicio || datas.dataFim)) {
+      const dataInicio = paraIso(datas.dataInicio);
+      const dataFim = paraIso(datas.dataFim);
+
+      if (!dataInicio || !dataFim) {
+        setErro("Informe as duas datas no formato dd/mm/aaaa, por exemplo 20/12/2026.");
         return;
       }
-      if (datas.dataFim < datas.dataInicio) {
+      if (dataFim < dataInicio) {
         setErro("A data de volta não pode ser antes da data de ida.");
         return;
       }
+      corpo.dataInicio = dataInicio;
+      corpo.dataFim = dataFim;
+    }
+
+    if (comAjustes && ajustes.trim()) {
+      corpo.ajustes = ajustes.trim();
     }
 
     setGerando(true);
     try {
-      const novo = await api.gerarRoteiro(id, precisaDatas ? datas : undefined);
+      const novo = await api.gerarRoteiro(id, corpo);
       setRoteiro(novo);
       setViagem(await api.buscarViagem(id));
+      setAjustes("");
+      setMostrarAjustes(false);
     } catch (err) {
       setErro(err.message);
     } finally {
@@ -188,6 +203,11 @@ export default function RoteiroViagem() {
               doc.querySelectorAll("[data-pdf-ignore]").forEach((el) => el.remove());
 
               doc.querySelectorAll("*").forEach((el) => {
+                el.style.transform = "none";
+                el.style.transition = "none";
+                el.style.animation = "none";
+                el.style.opacity = "1";
+
                 const estilo = doc.defaultView.getComputedStyle(el);
 
                 PROPRIEDADES_COR.forEach((prop) => {
@@ -200,10 +220,18 @@ export default function RoteiroViagem() {
                 el.style.boxShadow = "none";
                 el.style.textShadow = "none";
               });
+
+              doc.querySelectorAll(".pdf-card, .pdf-dia").forEach((el) => {
+                el.style.breakInside = "avoid";
+                el.style.pageBreakInside = "avoid";
+              });
             },
           },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ["css", "legacy"], avoid: [".rounded-2xl", ".rounded-3xl"] },
+          pagebreak: {
+            mode: ["css", "legacy"],
+            avoid: [".pdf-card", ".pdf-dia"],
+          },
         })
         .from(conteudoRef.current)
         .save();
@@ -260,7 +288,7 @@ export default function RoteiroViagem() {
               </button>
               {souAdmin && (
                 <button
-                  onClick={() => setConfirmarRegerar(true)}
+                  onClick={() => setMostrarAjustes((v) => !v)}
                   disabled={gerando}
                   className="rounded-full border border-turq px-5 py-2.5 font-bold text-turq disabled:opacity-60"
                 >
@@ -275,6 +303,40 @@ export default function RoteiroViagem() {
           <p role="alert" className="mt-6 font-medium text-accent">
             {erro}
           </p>
+        )}
+
+        {roteiro && souAdmin && mostrarAjustes && (
+          <section data-pdf-ignore className="mt-6 rounded-3xl border border-line bg-card p-6">
+            <p className="font-display text-2xl text-ink">O que o grupo gostaria de mudar?</p>
+            <p className="mt-1 text-sm text-muted">
+              Escreva com as suas palavras. Pode incluir datas, como "ir de 10 a 15 de janeiro", menos passeios pagos
+              ou mais tempo na praia.
+            </p>
+            <textarea
+              value={ajustes}
+              onChange={(e) => setAjustes(e.target.value)}
+              rows={4}
+              maxLength={1000}
+              placeholder="Ex.: queremos ir de 10 a 15 de janeiro e menos passeios de barco"
+              className="mt-4 w-full rounded-xl border border-line bg-bg px-4 py-3 text-ink placeholder:text-muted"
+            />
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                onClick={() => gerar({ comAjustes: true })}
+                disabled={gerando || !ajustes.trim()}
+                className="rounded-full bg-accent px-6 py-2.5 font-bold text-on-accent disabled:opacity-60"
+              >
+                {gerando ? "Refazendo..." : "Refazer com esses ajustes"}
+              </button>
+              <button
+                onClick={() => gerar()}
+                disabled={gerando}
+                className="rounded-full border border-line px-6 py-2.5 font-medium text-ink disabled:opacity-60"
+              >
+                Refazer sem ajustes
+              </button>
+            </div>
+          </section>
         )}
 
         {!temDestino && !roteiro && (
@@ -311,30 +373,27 @@ export default function RoteiroViagem() {
             </p>
 
             {precisaDatas && (
-              <div className="mt-6 grid gap-5 md:grid-cols-2">
-                <label className="block text-sm font-medium text-ink">
-                  Ida
-                  <input
-                    type="date"
+              <>
+                <div className="mt-6 grid gap-5 md:grid-cols-2">
+                  <CampoData
+                    label="Ida (opcional)"
                     value={datas.dataInicio}
-                    onChange={(e) => setDatas((d) => ({ ...d, dataInicio: e.target.value }))}
-                    className="mt-2 w-full rounded-xl border border-line bg-bg px-4 py-3 text-ink"
+                    onChange={(v) => setDatas((d) => ({ ...d, dataInicio: v }))}
                   />
-                </label>
-                <label className="block text-sm font-medium text-ink">
-                  Volta
-                  <input
-                    type="date"
+                  <CampoData
+                    label="Volta (opcional)"
                     value={datas.dataFim}
-                    onChange={(e) => setDatas((d) => ({ ...d, dataFim: e.target.value }))}
-                    className="mt-2 w-full rounded-xl border border-line bg-bg px-4 py-3 text-ink"
+                    onChange={(v) => setDatas((d) => ({ ...d, dataFim: v }))}
                   />
-                </label>
-              </div>
+                </div>
+                <p className="mt-3 text-sm text-muted">
+                  Se deixar as datas em branco, a IA escolhe o período pelo que o grupo contou nas conversas.
+                </p>
+              </>
             )}
 
             <button
-              onClick={gerar}
+              onClick={() => gerar()}
               disabled={gerando}
               className="mt-8 rounded-full bg-accent px-7 py-3 font-bold text-on-accent shadow-lg shadow-accent/30 disabled:opacity-60"
             >
@@ -350,6 +409,12 @@ export default function RoteiroViagem() {
         {roteiro && resumo && (
           <section className="mt-10">
             <h2 className="font-display text-3xl text-ink">Resumo da viagem</h2>
+            {resumo.datasDefinidasPelaIA && (
+              <p className="mt-2 text-sm text-muted">
+                As datas foram sugeridas pela IA com base nas conversas.
+                {resumo.pedidoAjuste ? ` Último ajuste pedido: "${resumo.pedidoAjuste}".` : ""}
+              </p>
+            )}
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               <Card
                 rotulo="Hospedagem"
@@ -366,7 +431,7 @@ export default function RoteiroViagem() {
               />
             </div>
 
-            <div className="mt-4 rounded-2xl border border-turq/40 bg-card p-5">
+            <div className="pdf-card mt-4 rounded-2xl border border-turq/40 bg-card p-5">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-turq">Custo estimado por pessoa</p>
               <p className="mt-1 font-display text-4xl text-ink">{moeda(resumo.custoEstimadoPorPessoa) ?? "—"}</p>
               {hospedagem?.motivo && <p className="mt-3 text-muted">{hospedagem.motivo}</p>}
@@ -386,13 +451,16 @@ export default function RoteiroViagem() {
               return (
                 <motion.div
                   key={dia.dia}
+                  className="pdf-dia"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.45, delay: di * 0.08, ease: "easeOut" }}
                 >
                   <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-4">
                     <div className="flex items-baseline gap-4">
-                      <span className="font-display text-5xl text-accent">{String(dia.dia).padStart(2, "0")}</span>
+                      <span className="font-display text-5xl text-accent [font-variant-numeric:lining-nums]">
+                        {String(dia.dia).padStart(2, "0")}
+                      </span>
                       <div>
                         <p className="text-sm font-bold uppercase tracking-[0.18em] text-turq">Dia {dia.dia}</p>
                         {dia.data && <p className="font-display text-3xl text-ink">{formatarDataBR(dia.data)}</p>}
@@ -446,20 +514,6 @@ export default function RoteiroViagem() {
           </section>
         )}
       </div>
-
-      <ConfirmacaoModal
-        aberto={confirmarRegerar}
-        titulo="Refazer o roteiro?"
-        texto="O roteiro atual será substituído por um novo, montado pela IA. Essa ação não pode ser desfeita."
-        textoConfirmar="Sim, refazer"
-        textoCancelar="Cancelar"
-        perigoso
-        onConfirmar={() => {
-          setConfirmarRegerar(false);
-          gerar();
-        }}
-        onCancelar={() => setConfirmarRegerar(false)}
-      />
     </main>
   );
 }

@@ -14,6 +14,15 @@ const ROTULO_STATUS = {
   CONCLUIDA: "Concluída",
 };
 
+const TIPOS_VIAGEM = [
+  { chave: "AMIGOS", rotulo: "Entre amigos" },
+  { chave: "CASAL", rotulo: "De casal" },
+  { chave: "ROMANTICA", rotulo: "Romântica" },
+  { chave: "ANIVERSARIO", rotulo: "Aniversário" },
+  { chave: "DATA_ESPECIAL", rotulo: "Data especial" },
+  { chave: "FAMILIA", rotulo: "Em família" },
+];
+
 const ICONES = {
   chat: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
   mapa: "M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z",
@@ -104,6 +113,10 @@ function proximoPasso(viagem, euNaViagem, souAdmin) {
   };
 }
 
+function confirmadoOuAdminSeguro(participante) {
+  return participante?.statusConvite === "ACEITO" || participante?.papel === "ADMIN";
+}
+
 export default function DetalheViagem() {
   const { id } = useParams();
   const { usuario } = useAuth();
@@ -118,6 +131,8 @@ export default function DetalheViagem() {
   const [confirmacao, setConfirmacao] = useState(null);
   const [linkConvite, setLinkConvite] = useState(null);
   const [copiado, setCopiado] = useState(false);
+  const [tipoEscolhido, setTipoEscolhido] = useState("");
+  const [detalheTipo, setDetalheTipo] = useState("");
 
   async function carregar() {
     try {
@@ -229,6 +244,19 @@ export default function DetalheViagem() {
     }
   }
 
+  async function salvarTipo() {
+    if (!tipoEscolhido) return;
+    setErro("");
+    try {
+      await api.definirTipoViagem(id, tipoEscolhido, detalheTipo);
+      setTipoEscolhido("");
+      setDetalheTipo("");
+      carregar();
+    } catch (err) {
+      setErro(err.message);
+    }
+  }
+
   const textoConfirmacao =
     confirmacao?.tipo === "remover"
       ? {
@@ -265,6 +293,7 @@ export default function DetalheViagem() {
   ];
 
   const podeVerAcoes = confirmadoOuAdminSeguro(euNaViagem);
+  const precisaDetalheTipo = tipoEscolhido === "ANIVERSARIO" || tipoEscolhido === "DATA_ESPECIAL";
 
   return (
     <main className="min-h-screen bg-bg px-6 py-10">
@@ -289,7 +318,8 @@ export default function DetalheViagem() {
           </div>
           <h1 className="mt-4 font-display text-5xl leading-tight text-ink">{viagem.nome}</h1>
           <p className="mt-2 text-muted">
-            {viagem.destinoFinal?.nomeDestino ?? "Destino a definir"} · {formatarDataBR(viagem.dataInicio) || "Datas a definir"}
+            {viagem.destinoFinal?.nomeDestino ?? "Destino a definir"} ·{" "}
+            {formatarDataBR(viagem.dataInicio) || "Datas a definir"}
             {viagem.dataFim && ` até ${formatarDataBR(viagem.dataFim)}`}
           </p>
         </motion.header>
@@ -304,13 +334,61 @@ export default function DetalheViagem() {
               <p className="text-sm text-muted">Aceite para entrar no planejamento.</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => responderConvite("aceitar")} className="rounded-full bg-accent px-5 py-2.5 font-bold text-on-accent">
+              <button
+                onClick={() => responderConvite("aceitar")}
+                className="rounded-full bg-accent px-5 py-2.5 font-bold text-on-accent"
+              >
                 Bora!
               </button>
-              <button onClick={() => responderConvite("recusar")} className="rounded-full border border-line px-5 py-2.5 font-medium text-ink">
+              <button
+                onClick={() => responderConvite("recusar")}
+                className="rounded-full border border-line px-5 py-2.5 font-medium text-ink"
+              >
                 Agora não
               </button>
             </div>
+          </section>
+        )}
+
+        {souAdmin && !viagem.tipoViagem && (
+          <section className="mt-6 rounded-3xl border border-line bg-card p-6">
+            <p className="font-display text-2xl text-ink">Que tipo de viagem é essa?</p>
+            <p className="mt-1 text-sm text-muted">
+              Isso ajuda a IA a sugerir passeios e experiências que combinam com o momento.
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {TIPOS_VIAGEM.map((t) => (
+                <button
+                  key={t.chave}
+                  onClick={() => setTipoEscolhido(t.chave)}
+                  className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+                    tipoEscolhido === t.chave ? "border-turq bg-turq text-on-accent" : "border-line text-ink"
+                  }`}
+                >
+                  {t.rotulo}
+                </button>
+              ))}
+            </div>
+
+            {precisaDetalheTipo && (
+              <input
+                value={detalheTipo}
+                onChange={(e) => setDetalheTipo(e.target.value)}
+                placeholder={
+                  tipoEscolhido === "ANIVERSARIO" ? "De quem é o aniversário?" : "Qual é a data especial?"
+                }
+                className="mt-4 w-full rounded-xl border border-line bg-bg px-4 py-3 text-ink placeholder:text-muted"
+              />
+            )}
+
+            <button
+              onClick={salvarTipo}
+              disabled={!tipoEscolhido}
+              className="mt-4 rounded-full bg-accent px-6 py-2.5 font-bold text-on-accent disabled:opacity-50"
+            >
+              Salvar tipo de viagem
+            </button>
           </section>
         )}
 
@@ -488,8 +566,4 @@ export default function DetalheViagem() {
       />
     </main>
   );
-}
-
-function confirmadoOuAdminSeguro(participante) {
-  return participante?.statusConvite === "ACEITO" || participante?.papel === "ADMIN";
 }

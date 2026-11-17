@@ -39,25 +39,43 @@ async function requisicao(caminho, { metodo = "GET", corpo } = {}) {
 }
 
 export const api = {
+  // Autenticação
   cadastro: (dados) => requisicao("/auth/cadastro", { metodo: "POST", corpo: dados }),
   login: (dados) => requisicao("/auth/login", { metodo: "POST", corpo: dados }),
+  esqueciSenha: (email) => requisicao("/auth/esqueci-senha", { metodo: "POST", corpo: { email } }),
+  redefinirSenha: (token, novaSenha) =>
+    requisicao("/auth/redefinir-senha", { metodo: "POST", corpo: { token, novaSenha } }),
 
+  // Viagens
+  listarViagens: () => requisicao("/viagens"),
   criarViagem: (dados) => requisicao("/viagens", { metodo: "POST", corpo: dados }),
   buscarViagem: (id) => requisicao(`/viagens/${id}`),
   excluirViagem: (id) => requisicao(`/viagens/${id}`, { metodo: "DELETE" }),
+
+  // Participantes
   convidar: (viagemId, email) =>
     requisicao(`/viagens/${viagemId}/participantes`, { metodo: "POST", corpo: { email } }),
   confirmarConvite: (viagemId) =>
     requisicao(`/viagens/${viagemId}/participantes/confirmar`, { metodo: "PATCH" }),
   recusarConvite: (viagemId) =>
     requisicao(`/viagens/${viagemId}/participantes/recusar`, { metodo: "PATCH" }),
+  removerParticipante: (viagemId, participanteId) =>
+    requisicao(`/viagens/${viagemId}/participantes/${participanteId}`, { metodo: "DELETE" }),
 
+  // Convite por link
+  gerarLinkConvite: (viagemId) => requisicao(`/convites/viagem/${viagemId}`, { metodo: "POST" }),
+  revogarLinkConvite: (viagemId) => requisicao(`/convites/viagem/${viagemId}`, { metodo: "DELETE" }),
+  buscarConvite: (token) => requisicao(`/convites/${token}`),
+  aceitarConvite: (token) => requisicao(`/convites/${token}/aceitar`, { metodo: "POST" }),
+
+  // Chat com o agente
   listarMensagens: (viagemId) => requisicao(`/viagens/${viagemId}/mensagens`),
   enviarMensagem: (viagemId, conteudo) =>
     requisicao(`/viagens/${viagemId}/mensagens`, { metodo: "POST", corpo: { conteudo } }),
   concluirConversa: (viagemId) =>
     requisicao(`/viagens/${viagemId}/mensagens/concluir`, { metodo: "POST" }),
 
+  // Preferências
   buscarPreferencias: (viagemId) => requisicao(`/viagens/${viagemId}/preferencias`),
   gerarPreferencias: (viagemId) =>
     requisicao(`/viagens/${viagemId}/preferencias/gerar`, { metodo: "POST" }),
@@ -65,9 +83,9 @@ export const api = {
     requisicao(`/viagens/${viagemId}/preferencias`, { metodo: "PATCH", corpo: dados }),
   statusRespostas: (viagemId) => requisicao(`/viagens/${viagemId}/preferencias/status`),
 
+  // Destinos e votação
   listarDestinos: (viagemId) => requisicao(`/viagens/${viagemId}/destinos`),
-  sugerirDestinos: (viagemId) =>
-    requisicao(`/viagens/${viagemId}/destinos/sugerir`, { metodo: "POST" }),
+  sugerirDestinos: (viagemId) => requisicao(`/viagens/${viagemId}/destinos/sugerir`, { metodo: "POST" }),
   votar: (viagemId, destinoId) =>
     requisicao(`/viagens/${viagemId}/destinos/${destinoId}/votar`, { metodo: "POST" }),
   encerrarVotacao: (viagemId, destinoId) =>
@@ -76,23 +94,13 @@ export const api = {
       corpo: destinoId ? { destinoId } : undefined,
     }),
 
+  // Roteiro
   buscarRoteiro: (viagemId) => requisicao(`/viagens/${viagemId}/roteiro`),
-  gerarRoteiro: (viagemId, datas) =>
-    requisicao(`/viagens/${viagemId}/roteiro/gerar`, { metodo: "POST", corpo: datas }),
-  listarViagens: () => requisicao("/viagens"),
-  removerParticipante: (viagemId, participanteId) =>
-  requisicao(`/viagens/${viagemId}/participantes/${participanteId}`, { metodo: "DELETE" }),
+  gerarRoteiro: (viagemId, corpo) =>
+    requisicao(`/viagens/${viagemId}/roteiro/gerar`, { metodo: "POST", corpo }),
 
-  gerarLinkConvite: (viagemId) => requisicao(`/convites/viagem/${viagemId}`, { metodo: "POST" }),
-revogarLinkConvite: (viagemId) => requisicao(`/convites/viagem/${viagemId}`, { metodo: "DELETE" }),
-buscarConvite: (token) => requisicao(`/convites/${token}`),
-aceitarConvite: (token) => requisicao(`/convites/${token}/aceitar`, { metodo: "POST" }),
-
-  buscarPerfil: () => requisicao("/perfil"),
-  atualizarPerfil: (dados) => requisicao("/perfil", { metodo: "PATCH", corpo: dados }),
-  trocarSenha: (dados) => requisicao("/perfil/senha", { metodo: "PATCH", corpo: dados }),
-
-    listarDespesas: (viagemId) => requisicao(`/viagens/${viagemId}/despesas`),
+  // Despesas
+  listarDespesas: (viagemId) => requisicao(`/viagens/${viagemId}/despesas`),
   criarDespesa: (viagemId, dados) =>
     requisicao(`/viagens/${viagemId}/despesas`, { metodo: "POST", corpo: dados }),
   editarDespesa: (viagemId, despesaId, dados) =>
@@ -102,8 +110,12 @@ aceitarConvite: (token) => requisicao(`/convites/${token}/aceitar`, { metodo: "P
   calcularSaldos: (viagemId) => requisicao(`/viagens/${viagemId}/despesas/saldos`),
   historicoDespesa: (viagemId, despesaId) =>
     requisicao(`/viagens/${viagemId}/despesas/${despesaId}/historico`),
-    esqueciSenha: (email) => requisicao("/auth/esqueci-senha", { metodo: "POST", corpo: { email } }),
-  redefinirSenha: (token, novaSenha) =>
-    requisicao("/auth/redefinir-senha", { metodo: "POST", corpo: { token, novaSenha } }),
-};
 
+  // Perfil
+  buscarPerfil: () => requisicao("/perfil"),
+  atualizarPerfil: (dados) => requisicao("/perfil", { metodo: "PATCH", corpo: dados }),
+  trocarSenha: (dados) => requisicao("/perfil/senha", { metodo: "PATCH", corpo: dados }),
+
+    definirTipoViagem: (viagemId, tipo, detalhe) =>
+    requisicao(`/viagens/${viagemId}/tipo`, { metodo: "PATCH", corpo: { tipo, detalhe } }),
+};

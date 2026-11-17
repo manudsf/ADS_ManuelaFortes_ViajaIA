@@ -1,5 +1,13 @@
 import * as roteiroService from "../services/roteiro.service.js";
 
+const MAX_CARACTERES_AJUSTES = 1000;
+
+function lerAjustes(ajustes) {
+  if (typeof ajustes !== "string") return undefined;
+  const texto = ajustes.trim();
+  return texto ? texto.slice(0, MAX_CARACTERES_AJUSTES) : undefined;
+}
+
 function tratarErro(error, res, mensagemPadrao) {
   switch (error.message) {
     case "SEM_PERMISSAO":
@@ -16,8 +24,6 @@ function tratarErro(error, res, mensagemPadrao) {
       return res.status(409).json({
         erro: `Ainda há ${error.pendentes} participante(s) que não concluíram a conversa com o agente.`,
       });
-    case "DATAS_NAO_DEFINIDAS":
-      return res.status(400).json({ erro: "Informe dataInicio e dataFim (ex: 2026-12-20) no corpo da requisição." });
     case "DATAS_INVALIDAS":
       return res.status(400).json({ erro: "Datas inválidas. A data final não pode ser anterior à inicial." });
     case "DURACAO_MAXIMA_EXCEDIDA":
@@ -35,13 +41,14 @@ function tratarErro(error, res, mensagemPadrao) {
 export async function gerar(req, res) {
   try {
     const { viagemId } = req.params;
-    const { dataInicio, dataFim } = req.body ?? {};
+    const { dataInicio, dataFim, ajustes } = req.body ?? {};
 
     const roteiro = await roteiroService.gerarRoteiro({
       viagemId,
       usuarioId: req.usuarioId,
-      dataInicio,
-      dataFim,
+      dataInicio: dataInicio || undefined,
+      dataFim: dataFim || undefined,
+      ajustes: lerAjustes(ajustes),
     });
 
     return res.status(201).json(roteiro);

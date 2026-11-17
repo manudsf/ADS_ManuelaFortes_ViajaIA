@@ -141,6 +141,8 @@ function calcularProximoPasso({ meuStatusConvite, minhaConversaConcluida, temDes
   return { tipo: "aguardar_roteiro", texto: "Destino definido, falta gerar o roteiro" };
 }
 
+const TIPOS_VALIDOS = ["AMIGOS", "CASAL", "ROMANTICA", "ANIVERSARIO", "DATA_ESPECIAL", "FAMILIA"];
+
 export async function excluirViagem({ viagemId, solicitanteId }) {
   const admin = await prisma.participanteViagem.findFirst({
     where: { viagemId, usuarioId: solicitanteId, papel: "ADMIN" },
@@ -170,3 +172,25 @@ export async function excluirViagem({ viagemId, solicitanteId }) {
     prisma.conviteLink.deleteMany({ where: { viagemId } }),
   ]);
 }
+
+export async function definirTipoViagem({ viagemId, usuarioId, tipo, detalhe }) {
+  const admin = await prisma.participanteViagem.findFirst({
+    where: { viagemId, usuarioId, papel: "ADMIN" },
+  });
+  if (!admin) throw new Error("SEM_PERMISSAO");
+
+  if (!TIPOS_VALIDOS.includes(tipo)) throw new Error("TIPO_INVALIDO");
+
+  const detalheLimpo = typeof detalhe === "string" ? detalhe.trim().slice(0, 120) : null;
+
+  return prisma.viagem.update({
+    where: { id: viagemId },
+    data: {
+      tipoViagem: tipo,
+      detalheTipo: detalheLimpo || null,
+    },
+  });
+}
+
+
+

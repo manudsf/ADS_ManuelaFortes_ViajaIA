@@ -72,6 +72,8 @@ model Viagem {
   criadoPorId    String       @map("criado_por")
   destinoFinalId String?      @unique @map("destino_final")
   criadoEm       DateTime     @default(now()) @map("criado_em")
+    tipoViagem     String?   @map("tipo_viagem")
+  detalheTipo    String?   @map("detalhe_tipo")
 
   criadoPor    Usuario          @relation("ViagemCriadaPor", fields: [criadoPorId], references: [id])
   destinoFinal DestinoSugerido? @relation("DestinoFinalDaViagem", fields: [destinoFinalId], references: [id])
@@ -80,6 +82,7 @@ model Viagem {
   destinosSugeridos DestinoSugerido[]    @relation("DestinosDaViagem")
   despesas          Despesa[]
   roteiro           Roteiro?
+  
 
   convitesLink ConviteLink[]
 

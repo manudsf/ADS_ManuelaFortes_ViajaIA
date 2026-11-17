@@ -248,7 +248,7 @@ export default function Landing() {
           <div className="relative flex min-h-[85vh] max-w-xl flex-col justify-center px-8 py-16 md:px-14">
             <Reveal>
               <p className="text-sm font-bold uppercase tracking-[0.22em] text-turq">
-                Sua turma, seu destino, zero bate-cabeça
+                Sua turma, seu destino, zero stress
               </p>
               <h1 className="mt-4 font-display text-6xl leading-[1.02] md:text-7xl">
                 Chama a galera. A viagem se organiza sozinha.
