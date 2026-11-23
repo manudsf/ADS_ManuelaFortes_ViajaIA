@@ -3,10 +3,11 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import FundoViagens from "../components/FundoViagens.jsx";
+import BotaoGoogle from "../components/BotaoGoogle.jsx";
 export default function Cadastro() {
   const [params] = useSearchParams();
   const voltar = params.get("voltar");
-  const { entrar } = useAuth();
+  const { entrar, entrarComGoogle } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ nome: "", email: "", senha: "", telefone: "" });
   const [erro, setErro] = useState("");
@@ -14,6 +15,19 @@ export default function Cadastro() {
 
   function atualizar(campo, valor) {
     setForm((atual) => ({ ...atual, [campo]: valor }));
+  }
+
+  async function handleGoogle(credential) {
+    setErro("");
+    setCarregando(true);
+    try {
+      await entrarComGoogle(credential);
+      navigate(voltar?.startsWith("/") ? voltar : "/viagens");
+    } catch (err) {
+      setErro(err.message);
+    } finally {
+      setCarregando(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -73,6 +87,13 @@ export default function Cadastro() {
         >
           {carregando ? "Criando conta..." : "Criar conta"}
         </button>
+
+        <div className="flex items-center gap-3 text-xs text-muted">
+          <span className="h-px flex-1 bg-line" />
+          ou
+          <span className="h-px flex-1 bg-line" />
+        </div>
+        <BotaoGoogle aoReceberCredencial={handleGoogle} />
 
         <p className="text-sm text-muted">
           Já tem conta?{" "}

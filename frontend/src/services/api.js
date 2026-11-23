@@ -42,6 +42,7 @@ export const api = {
   // Autenticação
   cadastro: (dados) => requisicao("/auth/cadastro", { metodo: "POST", corpo: dados }),
   login: (dados) => requisicao("/auth/login", { metodo: "POST", corpo: dados }),
+  loginGoogle: (credential) => requisicao("/auth/google", { metodo: "POST", corpo: { credential } }),
   esqueciSenha: (email) => requisicao("/auth/esqueci-senha", { metodo: "POST", corpo: { email } }),
   redefinirSenha: (token, novaSenha) =>
     requisicao("/auth/redefinir-senha", { metodo: "POST", corpo: { token, novaSenha } }),

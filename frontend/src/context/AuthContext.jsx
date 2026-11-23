@@ -20,6 +20,12 @@ export function AuthProvider({ children }) {
     setUsuario(dados);
   }
 
+  async function entrarComGoogle(credential) {
+    const { token, usuario: dados } = await api.loginGoogle(credential);
+    salvarSessao(token, dados);
+    setUsuario(dados);
+  }
+
   function sair() {
     limparSessao();
     setUsuario(null);
@@ -27,7 +33,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ usuario, autenticado: Boolean(usuario), entrar, sair, atualizarUsuarioLocal }}
+      value={{ usuario, autenticado: Boolean(usuario), entrar, entrarComGoogle, sair, atualizarUsuarioLocal }}
     >
       {children}
     </AuthContext.Provider>

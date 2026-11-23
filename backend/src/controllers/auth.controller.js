@@ -37,3 +37,25 @@ export async function login(req, res) {
     return res.status(500).json({ erro: "Erro interno ao autenticar usuário." });
   }
 }
+
+export async function loginComGoogle(req, res) {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({ erro: "Credencial do Google ausente." });
+    }
+
+    const resultado = await authService.autenticarComGoogle({ credential });
+    return res.status(200).json(resultado);
+  } catch (error) {
+    if (error.message === "GOOGLE_TOKEN_INVALIDO") {
+      return res.status(401).json({ erro: "Não foi possível confirmar sua conta Google. Tente de novo." });
+    }
+    if (error.message === "GOOGLE_NAO_CONFIGURADO") {
+      return res.status(503).json({ erro: "Login com Google indisponível no momento." });
+    }
+    console.error(error);
+    return res.status(500).json({ erro: "Erro interno ao autenticar com Google." });
+  }
+}

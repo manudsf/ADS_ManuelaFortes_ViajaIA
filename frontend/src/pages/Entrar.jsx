@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import FundoViagens from "../components/FundoViagens.jsx";
+import BotaoGoogle from "../components/BotaoGoogle.jsx";
 
 export default function Entrar() {
   const [params] = useSearchParams();
   const voltar = params.get("voltar");
-  const { entrar } = useAuth();
+  const { entrar, entrarComGoogle } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -19,6 +20,19 @@ export default function Entrar() {
     setCarregando(true);
     try {
       await entrar(email, senha);
+      navigate(voltar?.startsWith("/") ? voltar : "/viagens");
+    } catch (err) {
+      setErro(err.message);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function handleGoogle(credential) {
+    setErro("");
+    setCarregando(true);
+    try {
+      await entrarComGoogle(credential);
       navigate(voltar?.startsWith("/") ? voltar : "/viagens");
     } catch (err) {
       setErro(err.message);
@@ -73,6 +87,13 @@ export default function Entrar() {
         >
           {carregando ? "Entrando..." : "Entrar"}
         </button>
+
+        <div className="flex items-center gap-3 text-xs text-muted">
+          <span className="h-px flex-1 bg-line" />
+          ou
+          <span className="h-px flex-1 bg-line" />
+        </div>
+        <BotaoGoogle aoReceberCredencial={handleGoogle} />
 
         <p className="text-sm text-muted">
           Ainda não tem conta?{" "}
