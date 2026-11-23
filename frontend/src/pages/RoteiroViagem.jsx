@@ -36,6 +36,14 @@ function linkMapsDoDia(dia, destino) {
   return `https://www.google.com/maps/dir/${paradas.map((p) => encodeURIComponent(p)).join("/")}`;
 }
 
+// Monta a busca de voos no Google Flights com o destino e as datas do roteiro.
+function linkGoogleFlights(destino, dataInicio, dataFim) {
+  const partes = [`Flights to ${destino}`];
+  if (dataInicio && dataFim) partes.push(`on ${dataInicio} through ${dataFim}`);
+
+  return `https://www.google.com/travel/flights?q=${encodeURIComponent(partes.join(" "))}`;
+}
+
 // Converte qualquer cor moderna (oklch, lab, color-mix...) para rgb(), que o html2canvas entende.
 function converterParaRgb(cor) {
   const canvas = document.createElement("canvas");
@@ -175,6 +183,13 @@ export default function RoteiroViagem() {
     window.open(linkMapsDoDia(dia, destinoTexto), "_blank", "noopener");
   }
 
+  function buscarVoos() {
+    const destinoTexto = roteiro?.destino ?? viagem?.nome ?? "";
+    const inicio = roteiro?.resumo?.dataInicio ?? (viagem?.dataInicio ? String(viagem.dataInicio).slice(0, 10) : null);
+    const fim = roteiro?.resumo?.dataFim ?? (viagem?.dataFim ? String(viagem.dataFim).slice(0, 10) : null);
+    window.open(linkGoogleFlights(destinoTexto, inicio, fim), "_blank", "noopener");
+  }
+
   async function baixarPdf() {
     if (!conteudoRef.current) return;
 
@@ -285,6 +300,12 @@ export default function RoteiroViagem() {
                 className="rounded-full bg-turq px-5 py-2.5 font-bold text-on-accent disabled:opacity-60"
               >
                 {gerandoPdf ? "Gerando PDF..." : "Baixar em PDF"}
+              </button>
+              <button
+                onClick={buscarVoos}
+                className="rounded-full border border-turq px-5 py-2.5 font-bold text-turq"
+              >
+                Buscar voos
               </button>
               {souAdmin && (
                 <button
