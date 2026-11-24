@@ -27,19 +27,52 @@ export async function cadastrarUsuario({ nome, email, senha, telefone }) {
   };
 }
 
+// RF16: bloqueio temporário após tentativas inválidas de login (controle em memória, por e-mail).
+const TENTATIVAS_MAXIMAS = 5;
+const TEMPO_BLOQUEIO_MS = 15 * 60 * 1000;
+const falhasLogin = new Map(); // e-mail -> { falhas, bloqueadoAte }
+
+function verificarBloqueio(email) {
+  const registro = falhasLogin.get(email);
+  if (!registro?.bloqueadoAte) return;
+
+  if (Date.now() < registro.bloqueadoAte) {
+    throw new Error("CONTA_BLOQUEADA");
+  }
+
+  falhasLogin.delete(email);
+}
+
+function registrarFalha(email) {
+  const registro = falhasLogin.get(email) ?? { falhas: 0, bloqueadoAte: 0 };
+  registro.falhas += 1;
+
+  if (registro.falhas >= TENTATIVAS_MAXIMAS) {
+    registro.bloqueadoAte = Date.now() + TEMPO_BLOQUEIO_MS;
+    registro.falhas = 0;
+  }
+
+  falhasLogin.set(email, registro);
+}
+
 export async function autenticarUsuario({ email, senha }) {
+  verificarBloqueio(email);
+
   const usuario = await prisma.usuario.findUnique({ where: { email } });
 
   if (!usuario) {
+    registrarFalha(email);
     throw new Error("CREDENCIAIS_INVALIDAS");
   }
 
   const senhaCorreta = await bcrypt.compare(senha, usuario.senhaHash);
 
   if (!senhaCorreta) {
+    registrarFalha(email);
     throw new Error("CREDENCIAIS_INVALIDAS");
   }
 
+  falhasLogin.delete(email);
   return criarSessao(usuario);
 }
 

@@ -33,6 +33,11 @@ export async function login(req, res) {
     if (error.message === "CREDENCIAIS_INVALIDAS") {
       return res.status(401).json({ erro: "E-mail ou senha inválidos." });
     }
+    if (error.message === "CONTA_BLOQUEADA") {
+      return res
+        .status(429)
+        .json({ erro: "Muitas tentativas incorretas. Aguarde 15 minutos e tente novamente." });
+    }
     console.error(error);
     return res.status(500).json({ erro: "Erro interno ao autenticar usuário." });
   }
