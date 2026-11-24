@@ -14,7 +14,7 @@ async function exigirParticipante(viagemId, usuarioId) {
   return participante;
 }
 
-function dividirIgualmente(valorTotal, participantesIds) {
+export function dividirIgualmente(valorTotal, participantesIds) {
   const cota = Math.floor((valorTotal / participantesIds.length) * 100) / 100;
   const restoCentavos = Math.round((valorTotal - cota * participantesIds.length) * 100);
 

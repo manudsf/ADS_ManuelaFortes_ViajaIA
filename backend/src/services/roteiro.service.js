@@ -141,7 +141,7 @@ function sanitizarResumo(r) {
   };
 }
 
-function interpretarRoteiro(dados, dias) {
+export function interpretarRoteiro(dados, dias) {
   if (!dados || !Array.isArray(dados.dias)) {
     throw new Error("FALHA_AO_INTERPRETAR_RESPOSTA");
   }
